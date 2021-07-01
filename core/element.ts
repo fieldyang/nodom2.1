@@ -178,6 +178,7 @@ export class Element {
         if (!this.hasDirective('module')) {
             for (let i = 0; i < this.children.length; i++) {
                 let item = this.children[i];
+                console.log(item);
                 if (!item.render(module, this)) {
                     item.doDontRender();
                     this.children.splice(i--, 1);
@@ -203,63 +204,7 @@ export class Element {
         delete this.dontRender;
     }
 
-    /**
-     * 
-     * @param module 模块
-     * @param key domkey
-     * @param dom element节点
-     * @returns element
-     */
-    public getElement(module: Module, key: string, dom?: Element) {
-        let newDom = dom ? dom : module.virtualDom.clone();
-        let res;
-        function judge(dom) {
-            if (dom.key === key) {
-                res = dom;
-                return dom;
-            }
-            if (dom.children.length > 0) {
-                dom.children.forEach(element => {
-                    let res = judge(element);
-                    if (res != undefined)
-                        return res;
-                });
-            };
-            return undefined;
-        };
-        judge(newDom);
-        return res;
-    }
 
-    public dataRender(dom: Element, module: Module) {
-        let newDom: Element = dom.getElement(module, dom.key);
-        let retARR: ChangedDom[] = new Array();
-        let flag: Boolean = true;
-        if (newDom === undefined) {
-            newDom = module.virtualDom.clone();
-            newDom.render(module, null);
-            newDom = dom.getElement(module, dom.key, newDom);
-        } else {
-            flag = newDom.render(module, null);
-        }
-        if (!flag) {
-            retARR.push(new ChangedDom(newDom, 'rep', dom.getParent(module)));
-
-        } else {
-            newDom.compare(dom, retARR, dom.getParent(module));
-        }
-        // 删除
-        for (let i = retARR.length - 1; i >= 0; i--) {
-            let item: ChangedDom = retARR[i];
-            if (item.type === 'del') {
-                item.node.removeFromHtml(module);
-                retARR.splice(i, 1);
-            }
-        }
-        retARR.forEach((item) => {
-            item.node.renderToHtml(module, item);
-        });
-    }
 
     /**
      * 渲染到html element
@@ -477,46 +422,6 @@ export class Element {
             dst.directives.push(d);
         }
 
-        //普通属性
-        // Util.getOwnProps(this.props).forEach((k)=>{
-        //     dst.props[k] = this.props[k];
-        // });
-
-        //表达式属性
-        // Util.getOwnProps(this.exprProps).forEach((k)=>{
-        //     if(changeKey){
-        //         let item = this.exprProps[k];
-        //         if(Array.isArray(item)){   //数组
-        //             let arr = [];
-        //             for(let o of item){
-        //                 arr.push(o instanceof Expression?o.clone():o);
-        //             }
-        //             dst.exprProps[k] = arr;
-        //         }else if(item instanceof Expression){ //表达式
-        //             dst.exprProps[k] = item.clone();
-        //         }else{  //普通属性
-        //             dst.exprProps[k] = item;
-        //         }
-        //     }else{
-        //         dst.exprProps[k] = this.exprProps[k];
-        //     }
-        // });
-
-        //事件
-        // for(let key of this.events.keys()){
-        //     let evt = this.events.get(key);
-        //     //数组需要单独clone
-        //     if(Util.isArray(evt)){
-        //         let a:NEvent[] = [];
-        //         for(let e of <NEvent[]>evt){
-        //             a.push(e.clone());
-        //         }
-        //         dst.events.set(key,a);
-        //     }else{
-        //         dst.events.set(key,(<NEvent>evt).clone());
-        //     }
-        // }
-
         //孩子节点
         for (let c of this.children) {
             dst.add(c.clone(changeKey));
@@ -696,9 +601,15 @@ export class Element {
      * 添加子节点
      * @param dom 	子节点
      */
-    public add(dom: Element) {
-        dom.parentKey = this.key;
-        this.children.push(dom);
+    public add(dom: Element | Array<Element>) {
+        if (Array.isArray(dom)) {
+            dom.forEach(v => v.parentKey = this.key);
+            this.children.push(...dom);
+        } else {
+            dom.parentKey = this.key;
+            this.children.push(dom);
+        }
+
     }
 
     /**
@@ -724,7 +635,21 @@ export class Element {
     /**
      * 从html删除
      */
-    public removeFromHtml(module: Module) {
+    public removeFromHtml(module: Module, textNode?: boolean) {
+        // if (textNode) {
+        //     let parent = module.getNode(this.parentKey);
+        //     if (parent !== null) {
+        //         let content = Array.prototype.findIndex.call(parent.childNodes, (v) => {
+        //             if (v.nodeType == 3) {
+        //                 return this.textContent == v.textContent;
+        //             } else {
+        //                 return false;
+        //             }
+        //         });
+        //         if(content!=-1)
+        //         parent.removeChild(parent.childNodes[content]);
+        //     }
+        // }
         let el = module.getNode(this.key);
         if (el !== null) {
             Util.remove(el);
@@ -942,14 +867,12 @@ export class Element {
      * @returns	{type:类型 text/rep/add/upd,node:节点,parent:父节点, 
      * 			changeProps:改变属性,[{k:prop1,v:value1},...],removeProps:删除属性,[prop1,prop2,...],changeAssets:改变的asset}
      */
-    public compare(dst: Element, retArr: Array<ChangedDom>, parentNode?: Element) {
+    public compare(dst: Element, retArr: Array<ChangedDom>, deleteMap?: Map<string, Array<any>>, parentNode?: Element) {
         if (!dst) {
             return;
         }
         let re: ChangedDom = new ChangedDom();
         let change: boolean = false;
-        //找到过的dom map {domKey:true/false}，比较后，则添加到map
-        // let findedMap: Map<string, boolean> = new Map();
         if (this.tagName === undefined) { //文本节点
             if (dst.tagName === undefined) {
                 if (this.textContent !== dst.textContent) {
@@ -957,13 +880,11 @@ export class Element {
                     change = true;
                 }
             } else { //节点类型不同
-                re.type = 'rep';
-                change = true;
+                addDelKey(this, 'rep',);
             }
         } else { //element节点
             if (this.tagName !== dst.tagName) { //节点类型不同
-                re.type = 'rep';
-                change = true;
+                addDelKey(this, 'rep');
             } else { //节点类型相同，可能属性不同
                 //检查属性，如果不同则放到changeProps
                 re.changeProps = [];
@@ -1013,16 +934,12 @@ export class Element {
         if (!this.children || this.children.length === 0) {
             // 旧节点的子节点全部删除
             if (dst.children && dst.children.length > 0) {
-                dst.children.forEach((item) => {
-                    retArr.push(new ChangedDom(item, 'del'));
-                });
+                dst.children.forEach(item => addDelKey(item));
             }
         } else {
             //全部新加节点
             if (!dst.children || dst.children.length === 0) {
-                this.children.forEach((item) => {
-                    retArr.push(new ChangedDom(item, 'add', this));
-                });
+                this.children.forEach(item => retArr.push(new ChangedDom(item, 'add', this)));
             } else { //都有子节点
                 //子节点对比策略
                 let [oldStartIdx, oldStartNode, oldEndIdx, oldEndNode] = [0, dst.children[0], dst.children.length - 1, dst.children[dst.children.length - 1]];
@@ -1030,19 +947,19 @@ export class Element {
                 let [newMap, newKeyMap] = [new Map(), new Map()];
                 while (oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx) {
                     if (sameKey(oldStartNode, newStartNode)) {
-                        newStartNode.compare(oldStartNode, retArr, this);
+                        newStartNode.compare(oldStartNode, retArr, deleteMap, this);
                         newStartNode = this.children[++newStartIdx];
                         oldStartNode = dst.children[++oldStartIdx];
                     } else if (sameKey(oldEndNode, newEndNode)) {
-                        newEndNode.compare(oldEndNode, retArr, this);
+                        newEndNode.compare(oldEndNode, retArr, deleteMap, this);
                         newEndNode = this.children[--newEndIdx];
                         oldEndNode = dst.children[--oldEndIdx];
                     } else if (sameKey(newStartNode, oldEndNode)) {
-                        newStartNode.compare(oldEndNode, retArr, this);
+                        newStartNode.compare(oldEndNode, retArr, deleteMap, this);
                         newStartNode = this.children[++newStartIdx];
                         oldEndNode = dst.children[--oldEndIdx];
                     } else if (sameKey(newEndNode, oldStartNode)) {
-                        newEndNode.compare(oldStartNode, retArr, this);
+                        newEndNode.compare(oldStartNode, retArr, deleteMap, this);
                         newEndNode = this.children[--newEndIdx];
                         oldStartNode = dst.children[++oldStartIdx];
                     } else {
@@ -1058,12 +975,12 @@ export class Element {
                         for (let i = oldStartIdx; i <= oldEndIdx; i++) {
                             let oldKey = dst.children[i].key;
                             if (newKeyMap.has(oldKey)) {
-                                newMap.get(newKeyMap.get(oldKey)).compare(dst.children[i], retArr, this);
+                                newMap.get(newKeyMap.get(oldKey)).compare(dst.children[i], retArr, deleteMap, this);
                                 newMap.delete(newKeyMap.get(oldKey));
                                 newKeyMap.delete(oldKey);
                             }
                             else {
-                                retArr.push(new ChangedDom(dst.children[i], 'del', dst));
+                                addDelKey(dst.children[i]);
                             }
                         };
                     }
@@ -1073,42 +990,18 @@ export class Element {
                         retArr.push(new ChangedDom(v, 'add', this, k));
                     })
                 };
-                // this.children.forEach((dom1, ind) => {
-                //     let dom2: Element = dst.children[ind];
-                //     // dom1和dom2相同key
-                //     if (!dom2 || dom1.key !== dom2.key) {
-                //         dom2 = undefined;
-                //         //找到key相同的节点
-                //         for (let i = 0; i < dst.children.length; i++) {
-                //             //找到了相同key
-                //             if (dom1.key === dst.children[i].key) {
-                //                 dom2 = dst.children[i];
-                //                 break;
-                //             }
-                //         }
-                //     }
-                //     if (dom2 !== undefined) {
-                //         dom1.compare(dom2, retArr, this);
-                //         //设置匹配标志，用于后面删除没有标志的节点
-                //         findedMap.set(dom2.key, true);
-                //     } else {
-                //         // dom1为新增节点
-                //         retArr.push(new ChangedDom(dom1, 'add', this, ind));
-                //     }
-                // });
-
-                // //未匹配的节点设置删除标志
-                // if (dst.children && dst.children.length > 0) {
-                //     dst.children.forEach((item) => {
-                //         if (!findedMap.has(item.key)) {
-                //             retArr.push(new ChangedDom(item, 'del', dst));
-                //         }
-                //     });
-                // }
             }
         }
         function sameKey(newElement, oldElement) {
             return newElement.key === oldElement.key;
+        }
+        //添加刪除替換的key
+        function addDelKey(element, type?: string) {
+            let pKey: string = element.parentKey;
+            if (!deleteMap.has(pKey)) {
+                deleteMap.set(pKey, new Array());
+            }
+            deleteMap.get(pKey).push(type == 'rep' ? element.parent.children.indexOf(element) + '|' + this.key : element.parent.children.indexOf(element));
         }
 
     }

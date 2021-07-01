@@ -127,12 +127,6 @@ export class Module {
      */
     private moduleMap: Map<string, number> = new Map();
 
-    /**
-     * 插件集合
-     */
-    // private plugins: Map<string, Plugin> = new Map();
-
-
 
     /**
      * 构造器
@@ -345,16 +339,40 @@ export class Module {
                 root.render(this, null);
                 this.clearDontRender(root);
                 this.doModuleEvent('onBeforeRenderToHtml');
+                let deleteMap = new Map();
                 // 比较节点
-                root.compare(oldTree, this.renderDoms);
-                // 删除
-                for (let i = this.renderDoms.length - 1; i >= 0; i--) {
-                    let item: ChangedDom = this.renderDoms[i];
-                    if (item.type === 'del') {
-                        item.node.removeFromHtml(this);
-                        this.renderDoms.splice(i, 1);
+                root.compare(oldTree, this.renderDoms, deleteMap);
+                //刪除和替換
+                deleteMap.forEach((value, key) => {
+                    let dp = this.getNode(key);
+                    for (let i = value.length - 1; i >= 0; i--) {
+                        let index = value[i];
+                        if (typeof index == 'string') {
+                            let parm = index.split('|');
+                            index = parm[0];
+                            let vdom = root.query(parm[1]);
+                            dp.insertBefore((() => {
+                                let el;
+                                if (vdom.getTmpParam('isSvgNode')) {
+                                    el = Util.newSvgEl(vdom.tagName);
+                                } else {
+                                    el = Util.newEl(vdom.tagName);
+                                }
+                                //设置属性
+                                Util.getOwnProps(vdom.props).forEach((k) => {
+                                    el.setAttribute(k, vdom.props[k]);
+                                });
+                                el.setAttribute('key', vdom.key);
+                                vdom.handleNEvents(module, el, parent);
+                                vdom.handleAssets(el);
+                                return el;
+                            })(), dp.childNodes[index++]);
+                        }
+                        if (index != null && index != undefined)
+                            dp.removeChild(dp.childNodes[index]);
                     }
-                }
+                });
+                deleteMap.clear();
 
                 // 渲染
                 this.renderDoms.forEach((item) => {
@@ -721,26 +739,6 @@ export class Module {
     public removeMethod(name: string) {
         this.methodFactory.remove(name);
     }
-
-    /**
-     * 添加插件
-     * @param name      插件名
-     * @param plugin    插件
-     */
-    // public addNPlugin(name: string, plugin: Plugin) {
-    //     if (name) {
-    //         this.plugins.set(name, plugin);
-    //     }
-    // }
-
-    /**
-     * 获取插件
-     * @param name  插件名 
-     * @returns     插件实例
-     */
-    // public getNPlugin(name: string): Plugin {
-    //     return this.plugins.get(name);
-    // }
 
     /**
      * 设置数据url

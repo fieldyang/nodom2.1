@@ -36,16 +36,16 @@ export class Model {
                 if (excludes.includes(<string>key)) {
                     return true;
                 }
+
+                const excArr = ['$watch', "$moduleId", "$query", "$key", "$index"];
                 //不进行赋值
-                const excArr = ['$watch', "$moduleId", "$query", "$key"]
-                if (typeof value !== 'object' || !value.$watch) {
+                if (typeof value !== 'object' || (value === null || !value.$watch)) {
                     //更新渲染
-                    // src[key] = value;
-                    if (typeof (value) != 'function' && excArr.indexOf(value) == -1)
+                    if (excArr.indexOf(key) == -1) {
                         mm.update(proxy, key, src[key], value);
-                    return Reflect.set(src, key, value, receiver)
+                    }
                 }
-                return Reflect.set(src, key, value, receiver)
+                return Reflect.set(src, key, value, receiver);
             },
             get: (src: any, key: string | symbol, receiver) => {
                 // vue 的做法是变异 push 等方法避免追踪length 
@@ -58,7 +58,7 @@ export class Model {
                 if (data) {
                     return data
                 }
-                if (typeof res === 'object') {
+                if (typeof res === 'object' && res !== null) {
                     //如果是的对象，则返回代理，便于后续激活get set方法                   
                     // 判断是否已经代理，如果未代理，则增加代理
                     if (!src[key].$watch) {
@@ -86,7 +86,7 @@ export class Model {
         proxy.$watch = this.$watch;
         proxy.$moduleId = module.id;
         proxy.$query = this.$query;
-        proxy.$key = Util.genId();;
+        proxy.$key = Util.genId();
         mm.addToDataMap(data, proxy);
         mm.addModelToModelMap(proxy, data);
         return proxy;

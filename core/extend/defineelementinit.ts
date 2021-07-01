@@ -192,6 +192,7 @@ DefineElementManager.add('NCASE', {
 DefineElementManager.add('SLOT', {
     init: function (element: Element, parent?: Element) {
         element.tagName = 'div';
+        if(element.hasProp('name'))
         element.setTmpParam('slotName',element.getProp('name'));
     }
 });
