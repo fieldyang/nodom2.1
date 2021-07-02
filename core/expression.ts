@@ -36,7 +36,8 @@ export class Expression {
         if (execStr) {
             let v: string = this.fields.length > 0 ? ',' + this.fields.join(',') : '';
             execStr = 'function($module' + v + '){return ' + execStr + '}';
-            this.execFunc = eval('(' + execStr + ')');
+            this.execFunc=(new Function( 'return '+execStr))();
+            // this.execFunc = eval('(' + execStr + ')');
         }
     }
 
