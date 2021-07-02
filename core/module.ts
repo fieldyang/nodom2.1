@@ -677,17 +677,6 @@ export class Module {
                 dom.children.splice(i, 1);
                 return;
             }
-            //不渲染自己，子节点前进一级
-            if (item.dontRenderSelf) {
-                let arr = [];
-                for (let d of item.children) {
-                    d.parent = dom.parent;
-                    d.parentKey = dom.parentKey;
-                    arr.push(d);
-                }
-                dom.children.splice.apply(dom.children, [i, 1].concat(arr));
-                continue;
-            }
             this.clearDontRender(item);
         }
     }

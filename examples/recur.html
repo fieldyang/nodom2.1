@@ -43,6 +43,10 @@
 					<li x-repeat="items">{{title}}</li>
 				</ul>
 			</div>
+			<h3>与repeat一起使用</h3>
+			<div x-repeat='items' x-recur='items'>
+				<div>{{title}}</div>
+			</div>
 		</div>
 	</body>
 	<script>
@@ -76,6 +80,37 @@
 							},
 						},
 					},
+					items:[
+						{
+							title:'aaa',
+							items:[{
+								title:'aaa1',
+								items:[
+									{title:'aaa11'},
+									{title:'aaa12'}
+								]},{
+								title:'aaa2',
+								items:[
+									{title:'aaa21'},
+									{title:'aaa22'}
+								]}
+							]
+						},{
+							title:'bbb',
+							items:[{
+								title:'bbb1',
+								items:[
+									{title:'bbb11'},
+									{title:'bbb12'}
+								]},{
+								title:'bbb2',
+								items:[
+									{title:'bbb21'},
+									{title:'bbb22'}
+								]}
+							]
+						}
+					]
 				},
 				methods: {
 					show: function (dom, model) {
