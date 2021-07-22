@@ -243,27 +243,39 @@ export default (function () {
      * 数据格式：
      * data:{
      *     recurItem:{
-    *          title:'第一层',
-    *          recurItem:{
-    *              title:'第二层',
-    *              recurItem:{...}
-    *          }
-    *      }
+     *          title:'第一层',
+     *          recurItem:{
+     *              title:'第二层',
+     *              recurItem:{...}
+     *          }
+     *      }
      * }
      * 模版格式：
-     * <div x-recursion='items'><span>{{title}}</span></div>
+     * <div x-recur='recurItem'><span>{{title}}</span></div>
      */
     DirectiveManager.addType('recur',
         2,
         (directive: Directive, dom: Element, parent: Element) => {
+            // let propName:string;
+            // let value = directive.value.trim();
+            // let va = value.split('|');
+            // if(va.length>1){
+            //     propName = va[0].trim();
+            //     value=va[1].trim();
+            // }else{
+            //     propName=value;
+            // }
+            // directive.extra['prop'] = propName;
+            // directive.value = value;
         },
         (directive: Directive, dom: Element, module: Module, parent: Element) => {
             let model = dom.model;
             if (!model) {
                 return;
             }
-            //得到rows数组的model
+            //得到数据项
             let data = model.$query(directive.value);
+            //切换数据
             dom.model = data;
             //处理内部递归节点
             if (data[directive.value]) {
@@ -490,7 +502,8 @@ export default (function () {
         (directive: Directive, dom: Element) => {
             if (typeof directive.value === 'string') {
                 //转换为json数据
-                let obj = eval('(' + directive.value + ')');
+                // let obj = eval('(' + directive.value + ')');
+                let obj = new Function('return ' + directive.value)();
                 if (!Util.isObject(obj)) {
                     return;
                 }
@@ -893,20 +906,6 @@ export default (function () {
         },
         (directive, dom, module, parent) => {
             Router.routerKeyMap.set(module.id, dom.key);
-        }
-    );
-
-    /**
-     * 增加ignore指令
-     * 只渲染子节点到dom树
-     */
-    DirectiveManager.addType('ignoreself',
-        10,
-        (directive, dom) => {
-            dom.dontRenderSelf = true;
-        },
-        (directive, dom, module, parent) => {
-
         }
     );
 

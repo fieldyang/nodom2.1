@@ -66,7 +66,7 @@ export class DefineElement {
      * @param module    模块
      * @param uidom     虚拟dom
      */
-    public beforeRender(module: Module, uidom: Element) {
+    public beforeRender(uidom: Element, module: Module) {
         this.element = uidom;
         this.moduleId = module.id;
         // 如果需要改绑model，则改绑model
@@ -92,14 +92,14 @@ export class DefineElement {
      * @param module    模块
      * @param uidom     虚拟dom
      */
-    public afterRender(module: Module, uidom: Element) { }
+    public afterRender(uidom: Element, module: Module) { }
 
     /**
      * 克隆
      */
     public clone(dst?: Element) {
         let plugin = Reflect.construct(this.constructor, []);
-        
+
         //不拷贝属性
         let excludeProps: string[] = ['key', 'element', 'modelId', 'moduleId'];
         Util.getOwnProps(this).forEach((prop) => {

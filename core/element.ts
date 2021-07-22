@@ -92,30 +92,25 @@ export class Element {
     public dontRender: boolean = false;
 
     /**
-     * 不渲染自己
-     */
-    public dontRenderSelf: boolean = false;
-    /**
-     * 绑定插件
-     */
-    // public plugin: Plugin;
-    /**
-     * 自定义元素(插件，自定义标签)
-     */
-    // public isSvgNode: boolean;
-
-    /**
-     * 是否为svg节点
+     * 是否为自定义节点
      */
     public defineEl: DefineElement;
 
     /**
-     * 插槽名
+     * 渲染前（获取model后）执行方法集合,可以是方法名（在module的methods中定义），也可以是函数
+     * 函数的this指向element的model，参数为(element,module)
      */
-    // public slotName: any;
+    private beforeRenderOps:any[] = [];
+
     /**
-  * 临时参数 map
-  */
+     * 渲染后（renderToHtml前）执行方法集合，可以是方法名（在module的methods中定义），也可以是函数
+     * 函数的this指向element的model，参数为(element,module)
+     */
+    private afterRenderOps:any[] = [];
+    
+    /**
+     * 临时参数 map
+     */
     private tmpParamMap: Map<string, any> = new Map();
 
     /**
@@ -157,12 +152,8 @@ export class Element {
         if (!this.model) {
             this.model = module.model;
         }
-
-
-        //自定义元素的前置渲染
-        if (this.defineEl) {
-            this.defineEl.beforeRender(module, this);
-        }
+        //前置方法集合执行
+        this.doRenderOp(module,'before');
 
         if (this.tagName !== undefined) { //element
             if (!this.handleDirectives(module)) {
@@ -184,10 +175,8 @@ export class Element {
                 }
             }
         }
-        //自定义元素的后置渲染
-        if (this.defineEl) {
-            this.defineEl.afterRender(module, this);
-        }
+        //后置方法集执行
+        this.doRenderOp(module,'after');
         return true;
     }
 
@@ -255,7 +244,6 @@ export class Element {
                 parent.children.forEach(v => [
                     indexArr.push(v.key)
                 ])
-                // let ind = parent.children.indexOf(this);
                 let ind = indexArr.indexOf(this.key);
                 if (ind !== -1) {
                     //element或fragment
@@ -383,10 +371,8 @@ export class Element {
      */
     public clone(changeKey?: boolean): Element {
         let dst: Element = new Element();
-
         //不直接拷贝的属性
-        // let notCopyProps:string[] = ['parent','directives','props','exprProps','events','children'];
-        let notCopyProps: string[] = ['parent', 'directives', 'children', 'defineEl'];
+        let notCopyProps: string[] = ['parent', 'directives', 'children', 'defineEl','model'];
         //简单属性
         Util.getOwnProps(this).forEach((p) => {
             if (notCopyProps.includes(p)) {
@@ -1086,6 +1072,37 @@ export class Element {
      */
     hasTmpParam(key: string) {
         return this.tmpParamMap.has(key);
+    }
+
+    /**
+     * 添加渲染附加操作
+     * @param method    方法名 
+     * @param type      类型 before,after
+     */
+    public addRenderOp(method:any,type:string){
+        if(type === 'before'){
+            this.beforeRenderOps.push(method);
+        }else{
+            this.afterRenderOps.push(method);
+        }
+    }
+
+    /**
+     * 执行渲染附加操作
+     * @param module    模块
+     * @param type      类型 before,after
+     */
+   doRenderOp(module:Module,type:string){
+        let arr = type === 'before' ? this.beforeRenderOps : this.afterRenderOps;
+        for(let m of arr){
+            //可能是字符串
+            if(typeof m === 'string'){
+                m = module.getMethod(m);
+            }
+            if(m){
+                m.apply(this.model,[this,module]);
+            }
+        }
     }
 
 }

@@ -118,7 +118,8 @@ export class FilterManager{
         function handleObj(s:string) {
             s = s.trim();
             if (s.charAt(0) === '{') { //转换为对象
-                s = eval('(' + s + ')');
+                // s = eval('(' + s + ')');
+                s = new Function('return ' + s)();
             }
             return s;
         }
