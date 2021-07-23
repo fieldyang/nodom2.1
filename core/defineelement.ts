@@ -93,7 +93,7 @@ export class DefineElement {
      * @param module    模块
      * @param uidom     虚拟dom
      */
-    public afterRender(module: Module, uidom: Element) { }
+    public afterRender(uidom: Element, module: Module) { }
 
     /**
      * 克隆

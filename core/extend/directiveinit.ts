@@ -620,7 +620,8 @@ export default (function () {
         (directive: Directive, dom: Element) => {
             if (typeof directive.value === 'string') {
                 //转换为json数据
-                let obj = eval('(' + directive.value + ')');
+                // let obj = eval('(' + directive.value + ')');
+                let obj = new Function('return ' + directive.value)();
                 if (!Util.isObject(obj)) {
                     return;
                 }

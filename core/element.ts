@@ -372,7 +372,7 @@ export class Element {
     public clone(changeKey?: boolean): Element {
         let dst: Element = new Element();
         //不直接拷贝的属性
-        let notCopyProps: string[] = ['parent', 'directives', 'children', 'defineEl'];
+        let notCopyProps: string[] = ['parent', 'directives', 'children', 'defineEl','model'];
         //简单属性
         Util.getOwnProps(this).forEach((p) => {
             if (notCopyProps.includes(p)) {
@@ -597,11 +597,16 @@ export class Element {
      */
     public add(dom: Element | Array<Element>) {
         if (Array.isArray(dom)) {
-            dom.forEach(v => v.parentKey = this.key);
+            dom.forEach(v => {
+                v.parentKey = this.key;
+                //将parent也附加上，增量渲染需要
+                v.parent=this;
+            });
             this.children.push(...dom);
         } else {
             dom.parentKey = this.key;
             this.children.push(dom);
+            dom.parent=this;
         }
 
     }
@@ -1038,7 +1043,7 @@ export class Element {
             return newElement.key === oldElement.key;
         }
         //添加刪除替換的key
-        function addDelKey(element, type?: string) {
+        function addDelKey(element:Element, type?: string) {
             let pKey: string = element.parentKey;
             if (!deleteMap.has(pKey)) {
                 deleteMap.set(pKey, new Array());

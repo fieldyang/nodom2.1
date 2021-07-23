@@ -36,7 +36,8 @@ export class Expression {
         if (execStr) {
             let v: string = this.fields.length > 0 ? ',' + this.fields.join(',') : '';
             execStr = 'function($module' + v + '){return ' + execStr + '}';
-            this.execFunc = eval('(' + execStr + ')');
+            this.execFunc=(new Function( 'return '+execStr))();
+            // this.execFunc = eval('(' + execStr + ')');
         }
     }
 
@@ -81,7 +82,7 @@ export class Expression {
         //括号数组 字段数组 函数数组 存过滤器需要的值
         let filterString = '';
         //特殊字符
-        let special = /[\!\|\*\/\+\-><=&%]/;
+        let special = /[\?\:\!\|\*\/\+\-><=&%]/;
         //返回的串
         let express = '';
         //函数名
@@ -113,10 +114,10 @@ export class Expression {
                 let tmpStr = exprStr.substring(braces.pop(), last);
                 filters.push(tmpStr);
                 if (/[\,\!\|\*\/\+\-><=&%]/.test(tmpStr)) {//字段截取需要的字母集
-                    let fieldItem = tmpStr.match(/[\w^\.]+/g);
+                    let fieldItem = tmpStr.match(/[\w\$^\.]+/g);
                     fields = fields.concat(fieldItem);
                 } else {
-                    if (tmpStr.substr(1).match(/\w+/) && tmpStr.substr(1).match(/\w+/)[0].length == tmpStr.substr(1).length) {//括号里没有特殊符号
+                    if (tmpStr.substr(1).match(/[\$\w]+/) && tmpStr.substr(1).match(/[\$\w]+/)[0].length == tmpStr.substr(1).length) {//括号里没有特殊符号
                         fields.push(tmpStr.substr(1));
                     } else if (tmpStr.substr(1).startsWith('...')) {//拓展运算符
                         fields.push(tmpStr.substr(4));
@@ -258,7 +259,6 @@ export class Expression {
         try {
             v = this.execFunc.apply(null, valueArr);
         } catch (e) {
-
         }
         return v === undefined || v === null ? '' : v;
         /**
