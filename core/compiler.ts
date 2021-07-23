@@ -75,7 +75,7 @@ export class Compiler {
     public static handleAstNode(parent: Element, astObj: ASTObj) {
         // let de = PluginManager.get(astObj.tagName.toUpperCase());
         let de = DefineElementManager.get(astObj.tagName.toUpperCase());
-        
+
         let child = new Element(astObj.tagName);
         parent.add(child);
         this.handleAstAttrs(child, astObj.attrs, parent);

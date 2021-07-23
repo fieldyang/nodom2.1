@@ -67,24 +67,25 @@ export class DefineElement {
      * @param uidom     虚拟dom
      */
     public beforeRender(module: Module, uidom: Element) {
-        this.element = uidom;
-        this.moduleId = module.id;
+        let me = uidom.defineEl;
+        me.element = uidom;
+        me.moduleId = module.id;
         // 如果需要改绑model，则改绑model
-        if (this.parentDataName && this.parentDataName != '') {
-            uidom.model = uidom.model[this.parentDataName];
+        if (me.parentDataName && me.parentDataName != '') {
+            uidom.model = uidom.model[me.parentDataName];
         }
-        if (!this.model || uidom.key !== this.key) {
-            this.key = uidom.key;
+        if (!me.model || uidom.key !== me.key) {
+            me.key = uidom.key;
             // 插件默认把model绑定在根model上
-            this.model = uidom.model;
+            me.model = uidom.model;
             //添加到模块
             if (uidom.hasProp('name')) {
                 // module.addNPlugin(uidom.getProp('name'),this);       
-                this.name = uidom.getProp('name');
+                me.name = uidom.getProp('name');
             }
-            this.needPreRender = true;
+            me.needPreRender = true;
         } else {
-            this.needPreRender = false;
+            me.needPreRender = false;
         }
     }
     /**
@@ -99,7 +100,7 @@ export class DefineElement {
      */
     public clone(dst?: Element) {
         let plugin = Reflect.construct(this.constructor, []);
-        
+
         //不拷贝属性
         let excludeProps: string[] = ['key', 'element', 'modelId', 'moduleId'];
         Util.getOwnProps(this).forEach((prop) => {
