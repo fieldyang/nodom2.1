@@ -197,7 +197,6 @@ export default (function () {
             let chds = [];
             let key = dom.key;
 
-
             // 移除指令
             dom.removeDirectives(['repeat']);
             for (let i = 0; i < rows.length; i++) {
@@ -254,36 +253,39 @@ export default (function () {
      * <div x-recur='recurItem'><span>{{title}}</span></div>
      */
     DirectiveManager.addType('recur',
-        2,
+        3,
         (directive: Directive, dom: Element, parent: Element) => {
-            // let propName:string;
-            // let value = directive.value.trim();
-            // let va = value.split('|');
-            // if(va.length>1){
-            //     propName = va[0].trim();
-            //     value=va[1].trim();
-            // }else{
-            //     propName=value;
-            // }
-            // directive.extra['prop'] = propName;
-            // directive.value = value;
         },
         (directive: Directive, dom: Element, module: Module, parent: Element) => {
             let model = dom.model;
             if (!model) {
                 return;
             }
-            //得到数据项
-            let data = model.$query(directive.value);
-            //切换数据
-            dom.model = data;
-            //处理内部递归节点
-            if (data[directive.value]) {
-                let node = dom.clone();
-                node.model = data;
-                //作为当前节点子节点
-                dom.add(node);
+            let data = model[directive.value];
+            // 渲染时，去掉model指令，避免被递归节点使用
+            if(dom.hasDirective('model')){
+                dom.removeDirectives(['model']);
             }
+            //处理内部递归节点
+            if (data) {
+                console.log(dom.key,dom.children.length);
+                        
+                if(Array.isArray(data)){ //为数组，则遍历生成多个节点
+                    // 先克隆一个用作基本节点，避免在循环中为基本节点增加子节点
+                    let node:Element = dom.clone(true);
+                    for(let d of data){
+                        let nod:Element = node.clone(true);
+                        nod.model = d;
+                        //作为当前节点子节点
+                        dom.add(nod);
+                    }
+                }else{
+                    let node:Element = dom.clone(true);
+                    node.model = data;
+                    //作为当前节点子节点
+                    dom.add(node);
+                }
+            } 
         }
     );
 
@@ -614,13 +616,13 @@ export default (function () {
             }
 
             let dataValue = model.$query(directive.value);
-            // model[directive.value];
             //变为字符串
             if (dataValue !== undefined && dataValue !== null) {
                 dataValue += '';
             }
-
-            let value = dom.getProp('value');
+            //无法获取虚拟dom的value，只能从对应的element获取
+            let el:any = module.getNode(dom.key);
+            let value = el?el.value:undefined;
 
             if (type === 'radio') {
                 if (dataValue + '' === value) {
