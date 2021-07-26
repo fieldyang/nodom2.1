@@ -62,6 +62,7 @@ export default (function(){
         for (let i = 0; i < digits; i++) {
             x *= 10;
         }
+        
         return ((value * x + 0.5) | 0) / x;
     });
 

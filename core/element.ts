@@ -100,14 +100,14 @@ export class Element {
      * 渲染前（获取model后）执行方法集合,可以是方法名（在module的methods中定义），也可以是函数
      * 函数的this指向element的model，参数为(element,module)
      */
-    private beforeRenderOps:any[] = [];
+    private beforeRenderOps: any[] = [];
 
     /**
      * 渲染后（renderToHtml前）执行方法集合，可以是方法名（在module的methods中定义），也可以是函数
      * 函数的this指向element的model，参数为(element,module)
      */
-    private afterRenderOps:any[] = [];
-    
+    private afterRenderOps: any[] = [];
+
     /**
      * 临时参数 map
      */
@@ -153,7 +153,7 @@ export class Element {
             this.model = module.model;
         }
         //前置方法集合执行
-        this.doRenderOp(module,'before');
+        this.doRenderOp(module, 'before');
 
         if (this.tagName !== undefined) { //element
             if (!this.handleDirectives(module)) {
@@ -176,7 +176,7 @@ export class Element {
             }
         }
         //后置方法集执行
-        this.doRenderOp(module,'after');
+        this.doRenderOp(module, 'after');
         return true;
     }
 
@@ -372,7 +372,7 @@ export class Element {
     public clone(changeKey?: boolean): Element {
         let dst: Element = new Element();
         //不直接拷贝的属性
-        let notCopyProps: string[] = ['parent', 'directives', 'children', 'defineEl'];
+        let notCopyProps: string[] = ['parent', /*'directives',  'defineEl',*/,'children','model'];
         //简单属性
         Util.getOwnProps(this).forEach((p) => {
             if (notCopyProps.includes(p)) {
@@ -391,7 +391,7 @@ export class Element {
         }
 
         //define element复制
-        if (this.defineEl) {
+        /*if (this.defineEl) {
             if (changeKey) {
                 dst.defineEl = this.defineEl.clone(dst);
             } else {
@@ -406,11 +406,12 @@ export class Element {
             }
             dst.directives.push(d);
         }
-
+        */
         //孩子节点
         for (let c of this.children) {
             dst.add(c.clone(changeKey));
         }
+        
         return dst;
     }
 
@@ -449,9 +450,9 @@ export class Element {
     }
 
     /**
-     * 处理属性（带表达式）
-     * @param module    模块
-     */
+      * 处理属性（带表达式）
+      * @param module    模块
+      */
     public handleProps(module: Module) {
         for (let k of Util.getOwnProps(this.exprProps)) {
             //属性值为数组，则为表达式
@@ -460,11 +461,20 @@ export class Element {
                 //class可叠加
                 if (k === 'class') {
                     this.addClass(pv);
+                } else if (k === 'style') {
+                    this.addStyle(pv);
                 } else {
                     this.props[k] = pv;
                 }
             } else if (this.exprProps[k] instanceof Expression) { //单个表达式
-                this.props[k] = this.exprProps[k].val(this.model);
+                if (k === 'class') {
+                    this.addClass(this.exprProps[k].val(this.model))
+                }
+                else if (k === 'style') {
+                    this.addStyle(this.exprProps[k].val(this.model))
+                } else {
+                    this.props[k] = this.exprProps[k].val(this.model);
+                }
             }
         }
     }
@@ -517,19 +527,20 @@ export class Element {
 
     /**
      * 移除指令
-     * @param directives 	待删除的指令类型数组
+     * @param directives 	待删除的指令类型数组或指令类型
      */
-    public removeDirectives(directives: string[]) {
-        for (let i = 0; i < this.directives.length; i++) {
-            if (directives.length === 0) {
-                break;
+    public removeDirectives(directives: string|string[]) {
+        if(typeof directives === 'string'){
+            let ind;
+            if((ind=this.directives.findIndex(item=>item.type.name === directives)) !== -1){
+                this.directives.splice(ind,1);
             }
-            for (let j = 0; j < directives.length; j++) {
-                if (directives[j].includes(this.directives[i].type.name)) {
-                    this.directives.splice(i--, 1);
-                    directives.splice(j--, 1);
-                    break;
-                }
+            return;
+        }
+        for(let d of directives){
+            let ind;
+            if((ind=this.directives.findIndex(item=>item.type.name === d)) !== -1){
+                this.directives.splice(ind,1);
             }
         }
     }
@@ -588,11 +599,16 @@ export class Element {
      */
     public add(dom: Element | Array<Element>) {
         if (Array.isArray(dom)) {
-            dom.forEach(v => v.parentKey = this.key);
+            dom.forEach(v => {
+                v.parentKey = this.key;
+                //将parent也附加上，增量渲染需要
+                v.parent=this;
+            });
             this.children.push(...dom);
         } else {
             dom.parentKey = this.key;
             this.children.push(dom);
+            dom.parent=this;
         }
 
     }
@@ -746,7 +762,55 @@ export class Element {
         }
         this.props['class'] = clazz;
     }
+    /**
+         * 查询style
+         * @param styStr style字符串
+         */
+    public hasStyle(styStr: string) {
+        let styleStr = this.props['style'];
+        if (!styleStr) {
+            return false;
+        } else {
+            return styleStr.trim().split(/;\s+/).includes(styStr);
+        }
+    }
 
+    /**
+     * 添加style
+     *  @param styStr style字符串
+     */
+    public addStyle(styStr: string) {
+        let styleStr = this.props['style'];
+        if (!styleStr) {
+            this.props['style'] = styStr;
+        } else {
+            let sa: any[] = styleStr.trim().split(/;\s+/);
+            if (!sa.includes(styStr)) {
+                sa.push(styStr);
+                styleStr = sa.join(';');
+                this.props['style'] = styleStr;
+            }
+        }
+    }
+
+    /**
+     * 删除style
+     * @param styStr style字符串
+     */
+    public removeStyle(styStr: string) {
+        let styleStr = this.props['style'];
+        if (!styleStr) {
+            return;
+        } else {
+            let sa: string[] = styleStr.trim().split(/;\s+/);
+            let index;
+            if ((index = sa.indexOf(styStr)) !== -1) {
+                sa.splice(index, 1);
+                styleStr = sa.join(';');
+            }
+        }
+        this.props['style'] = styleStr;
+    }
     /**
      * 是否拥有属性
      * @param propName  属性名
@@ -981,7 +1045,7 @@ export class Element {
             return newElement.key === oldElement.key;
         }
         //添加刪除替換的key
-        function addDelKey(element, type?: string) {
+        function addDelKey(element:Element, type?: string) {
             let pKey: string = element.parentKey;
             if (!deleteMap.has(pKey)) {
                 deleteMap.set(pKey, new Array());
@@ -1074,10 +1138,10 @@ export class Element {
      * @param method    方法名 
      * @param type      类型 before,after
      */
-    addRenderOp(method:any,type:string){
-        if(type === 'before'){
+    addRenderOp(method: any, type: string) {
+        if (type === 'before') {
             this.beforeRenderOps.push(method);
-        }else{
+        } else {
             this.afterRenderOps.push(method);
         }
     }
@@ -1087,17 +1151,25 @@ export class Element {
      * @param module    模块
      * @param type      类型 before,after
      */
-    doRenderOp(module:Module,type:string){
+    doRenderOp(module: Module, type: string) {
+        // 否则执行注册在element上的前置渲染方法
         let arr = type === 'before' ? this.beforeRenderOps : this.afterRenderOps;
-        for(let m of arr){
+        for (let m of arr) {
             //可能是字符串
-            if(typeof m === 'string'){
+            if (typeof m === 'string') {
                 m = module.getMethod(m);
             }
-            if(m){
-                m.apply(this.model,[this,module]);
+            if (m) {
+                m.apply(this.model, [module, this]);
             }
         }
+
+        // if (this.defineEl) {
+        //     // 如果是自定义元素或者插件，则执行插件的beforerender方法
+        //     this.defineEl.beforeRender(module, this);
+        // } else {
+
+        // }
     }
 
 }

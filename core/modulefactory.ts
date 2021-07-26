@@ -171,7 +171,8 @@ export class ModuleFactory {
         //加载模块类js文件
         let url: string = Util.mergePath([Application.getPath('module'), path]);
         await ResourceManager.getResources([{ url: url, type: 'js' }]);
-        let cls = eval(cfg.class);
+        // let cls = eval(cfg.class);
+        let cls = new Function('return '+cfg.class)();
         if (cls) {
             let instance = Reflect.construct(cls, [{
                 name: cfg.name,

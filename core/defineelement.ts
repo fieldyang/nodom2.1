@@ -41,7 +41,7 @@ export class DefineElement {
     /**
      * 是否需要前置渲染
      */
-    needPreRender: boolean;
+    // needPreRender: boolean;
 
     /**
      * 附加数据项名
@@ -51,67 +51,73 @@ export class DefineElement {
     /**
      * 需要改绑的model名
      */
-    parentDataName: string;
+    // parentDataName: string;
 
     constructor(params: HTMLElement | Object | Element) {
+        if(params instanceof Element){
+            this.element = params;
+        }
     }
 
     /**
      * 初始化 子类必须实现init方法
+     * @param dom       dom插件所属节点
+     * @param parent    父节点
      */
-    public init(dom: Element, parent?: Element) { };
+    public init(dom: Element, parent?: Element) {}
 
     /**
      * 前置渲染方法(dom render方法中获取modelId和parentKey后执行)
      * @param module    模块
      * @param uidom     虚拟dom
      */
-    public beforeRender(module: Module, uidom: Element) {
-        this.element = uidom;
-        this.moduleId = module.id;
+    /*public beforeRender(module: Module, uidom: Element) {
+        let me = uidom.defineEl;
+        me.element = uidom;
+        me.moduleId = module.id;
         // 如果需要改绑model，则改绑model
-        if (this.parentDataName && this.parentDataName != '') {
-            uidom.model = uidom.model[this.parentDataName];
+        if (me.parentDataName && me.parentDataName != '') {
+            uidom.model = uidom.model[me.parentDataName];
         }
-        if (!this.model || uidom.key !== this.key) {
-            this.key = uidom.key;
+        if (!me.model || uidom.key !== me.key) {
+            me.key = uidom.key;
             // 插件默认把model绑定在根model上
-            this.model = uidom.model;
+            me.model = uidom.model;
             //添加到模块
             if (uidom.hasProp('name')) {
                 // module.addNPlugin(uidom.getProp('name'),this);       
-                this.name = uidom.getProp('name');
+                me.name = uidom.getProp('name');
             }
-            this.needPreRender = true;
+            me.needPreRender = true;
         } else {
-            this.needPreRender = false;
+            me.needPreRender = false;
         }
-    }
+    }*/
     /**
      * 后置渲染方法(dom render结束后，渲染到html之前)
      * @param module    模块
      * @param uidom     虚拟dom
      */
-    public afterRender(module: Module, uidom: Element) { }
+    // public afterRender(uidom: Element, module: Module) { }
 
     /**
      * 克隆
      */
     public clone(dst?: Element) {
-        let plugin = Reflect.construct(this.constructor, []);
-        
+        return Reflect.construct(this.constructor, [dst]);
+        // let plugin = Reflect.construct(this.constructor, [dst]);
         //不拷贝属性
-        let excludeProps: string[] = ['key', 'element', 'modelId', 'moduleId'];
-        Util.getOwnProps(this).forEach((prop) => {
-            if (excludeProps.includes(prop)) {
-                return;
-            }
-            plugin[prop] = Util.clone(this[prop]);
-        });
-        if (dst) {
-            plugin.element = dst;
-        }
-        return plugin;
+        // let excludeProps: string[] = ['key', 'element', 'modelId', 'moduleId'];
+        // Util.getOwnProps(this).forEach((prop) => {
+        //     if (excludeProps.includes(prop)) {
+        //         return;
+        //     }
+        //     plugin[prop] = Util.clone(this[prop]);
+        // });
+        // if (dst) {
+        //     plugin.element = dst;
+        // }
+        // return plugin;
     }
 
     /**

@@ -27,9 +27,9 @@ export async function app(config?: IAppCfg): Promise<Module> {
     let lang: string = config && config.language;
     if (!lang) {
         lang = navigator.language ? navigator.language.substr(0, 2) : 'zh';
-    }
-    NodomMessage = eval('(NodomMessage_' + lang + ')');
-
+     }
+    //  NodomMessage = eval('(NodomMessage_' + lang + ')');     
+     NodomMessage = new Function('return window.nodom.NodomMessage_' + lang)();
     if (!config || !config.module) {
         throw new NError('config', NodomMessage.TipWords['application']);
     }

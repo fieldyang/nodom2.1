@@ -242,15 +242,15 @@ export default (function () {
      * 数据格式：
      * data:{
      *     recurItem:{
-     *          title:'第一层',
-     *          recurItem:{
-     *              title:'第二层',
-     *              recurItem:{...}
-     *          }
-     *      }
+    *          title:'第一层',
+    *          recurItem:{
+    *              title:'第二层',
+    *              recurItem:{...}
+    *          }
+    *      }
      * }
      * 模版格式：
-     * <div x-recur='recurItem'><span>{{title}}</span></div>
+     * <div x-recursion='items'><span>{{title}}</span></div>
      */
     DirectiveManager.addType('recur',
         3,
@@ -263,13 +263,10 @@ export default (function () {
             }
             let data = model[directive.value];
             // 渲染时，去掉model指令，避免被递归节点使用
-            if(dom.hasDirective('model')){
-                dom.removeDirectives(['model']);
-            }
+            dom.removeDirectives('model');
+            
             //处理内部递归节点
             if (data) {
-                console.log(dom.key,dom.children.length);
-                        
                 if(Array.isArray(data)){ //为数组，则遍历生成多个节点
                     // 先克隆一个用作基本节点，避免在循环中为基本节点增加子节点
                     let node:Element = dom.clone(true);
@@ -494,6 +491,136 @@ export default (function () {
             }
         }
     );
+    /**
+     * 指令名 
+     * 描述：显示指令
+     */
+    DirectiveManager.addType('animation',
+        9,
+        (directive: Directive, dom: Element) => {
+            if (typeof directive.value === 'string') {
+                // 转换成json数据
+                let arr: Array<any> = directive.value.trim().split("|");
+                if (!Util.isArray(arr)) {
+                    return;
+                }
+                if (Util.isString(arr[0])) {
+                    arr[0] = arr[0].trim();
+                    arr[0] = new Expression(arr[0])
+                }
+                if (Util.isString(arr[1])) {
+                    //如果是字符串，转换为表达式
+                    arr[1] = new Expression(arr[1]);
+                } else {
+                    arr[1] = arr[1].trim();
+                }
+                if (arr[2]) {
+                    arr[2] = arr[2].trim();
+                }
+                directive.value = arr;
+            }
+        },
+        (directive: Directive, dom: Element, module: Module, parent: Element) => {
+            let arr = directive.value;
+            let clsArr: Array<string> = [];
+            let cls: string = dom.getProp('class');
+            let model = dom.model;
+            if (Util.isString(cls) && !Util.isEmpty(cls)) {
+                clsArr = cls.trim().split(/\s+/);
+            }
+            let r0 = arr[0];
+            let r1 = arr[1];
+            if (r0 instanceof Expression) {
+                r0 = r0.val(model, dom);
+            }
+            if (r1 instanceof Expression) {
+                r1 = r1.val(model, dom);
+            }
+            let el: HTMLElement = document.querySelector(`[key='${dom.key}']`)
+            // 定义动画结束回调。用于在离开动画结束的时候隐藏dom并且清除事件监听
+            let handler = () => {
+                // 这里面需要判断当前是在进入动画还是离开动画。
+                // 在离开动画还没有播完的时候触发进入动画，当进入动画完成之后还是会执行handler 导致DOM被隐藏
+                let r1 = arr[1]
+                if (r1 instanceof Expression) {
+                    r1 = r1.val(model, dom);
+                }
+                if (!r1 || r1 === 'false') {
+                    if (arr[2] && arr[2] == 'visibility') {
+                        el.style.visibility = 'hidden';
+                    } else {
+                        el.style.display = 'none';
+                    }
+                }
+                el.removeEventListener('animationend', handler);
+            }
+            if (!r1 || r1 === 'false') {
+                // 从显示切换到隐藏。
+                if (el) {
+                    if (el.classList.contains("nd-animation-" + r0 + "-enter")) {
+                        // 这里再判断一下有没有进入的过渡类名，如果没有则不播放离开动画，可能是插件触发了两次渲染。
+                        // 为了触发动画
+                        //  1. 删除原来的动画属性
+                        // el.classList.remove("nd-animation-" + arr[0] + "-leave")
+                        el.classList.remove("nd-animation-" + r0 + "-enter");
+                        // 操作了真实dom，虚拟dom也要做相应的变化，否则可能导致第二次渲染属性不一致
+                        dom.removeClass("nd-animation-" + r0 + "-enter");
+                        //  2.重新定位一次元素。 本来是el.offsetWidth=el.offsetWidth的
+                        //    下面是严格模式下的替代方案
+                        void el.offsetWidth
+                        //  3.添加新的动画
+                        el.classList.add("nd-animation-" + r0 + "-leave");
+                        // 操作了真实dom，虚拟dom也要做相应的变化，否则可能导致第二次渲染属性不一致
+                        dom.addClass("nd-animation-" + r0 + "-leave");
+                        // 添加动画结束监听
+                        el.addEventListener('animationend', handler);
+                    } else {
+                        if (arr[2] && arr[2] == 'visibility') {
+                            dom.addStyle('visibility:hidden')
+                        } else {
+                            dom.addStyle('display:none');
+                        }
+                        return;
+                    }
+                } else {
+                    // 不显示，并且也没有el 比如poptip
+                    if (arr[2] && arr[2] == 'visibility') {
+                        dom.addStyle("visibility:hidden");
+                    } else {
+                        dom.addStyle("display:none");
+                    }
+                    dom.dontRender = false;
+                }
+            } else {
+                // 从隐藏切换到显示
+                if (el) {
+                    //  1. 删除原来的动画属性
+                    // if (!el.classList.contains("nd-animation-" + r0 + "-leave")) {
+                    // 判断一下有没有离开的过渡类名，如果没有，则不播放进入动画，有可能是repeat触发的重复渲染。
+                    el.classList.remove("nd-animation-" + r0 + "-leave");
+                    // 操作了真实dom，虚拟dom也要做相应的变化，否则可能导致第二次渲染属性不一致
+                    dom.removeClass("nd-animation-" + r0 + "-leave");
+                    //  2.重新定位一次元素。 本来是el.offsetWidth=el.offsetWidth的
+                    //    下面是严格模式下的替代方案
+                    void el.offsetWidth
+                    //  3.添加新的动画
+                    el.classList.add("nd-animation-" + r0 + "-enter");
+                    // 操作了真实dom，虚拟dom也要做相应的变化，否则可能导致第二次渲染属性不一致
+                    dom.addClass('nd-animation-' + r0 + '-enter');
+                    if (arr[2] && arr[2] == 'visibility') {
+                        el.style.visibility = 'visible';
+                    } else {
+                        el.style.display = '';
+                    }
+                    // }
+                } else {
+                    // 显示，但是没有el  比如repeat出来的元素一开始就要显示
+                    dom.addClass('nd-animation-' + r0 + '-enter');
+                    dom.dontRender = false;
+                }
+            }
+        }
+    );
 
     /**
      * 指令名 class
@@ -504,7 +631,8 @@ export default (function () {
         (directive: Directive, dom: Element) => {
             if (typeof directive.value === 'string') {
                 //转换为json数据
-                let obj = eval('(' + directive.value + ')');
+                // let obj = eval('(' + directive.value + ')');
+                let obj = new Function('return ' + directive.value)();
                 if (!Util.isObject(obj)) {
                     return;
                 }
@@ -911,12 +1039,26 @@ export default (function () {
     );
 
     /**
+     * 增加ignore指令
+     * 只渲染子节点到dom树
+     */
+    DirectiveManager.addType('ignoreself',
+        10,
+        (directive, dom) => {
+            dom.dontRenderSelf = true;
+        },
+        (directive, dom, module, parent) => {
+
+        }
+    );
+
+    /**
      * 粘指令，粘在前一个dom节点上，如果前一个节点repeat了多个分身，则每个分身都粘上
      * 如果未指定model，则用被粘节点的model
      */
     DirectiveManager.addType('stick',
         10,
-        (directive, dom:Element) => {
+        (directive, dom: Element) => {
         },
         (directive, dom, module, parent) => {
         }

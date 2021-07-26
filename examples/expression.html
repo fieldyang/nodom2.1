@@ -43,7 +43,8 @@
         <div>instanceof用法:{{arr instanceof Array}}</div>
         <div>{{num+1}}</div>
         <hr>
-        <div>支持从数据中直接调用函数：{{sum(num,discount)}}</div>
+        <div>支持从数据中直接调用函数：{{sum($num,0)}}</div>
+        <div>三目运算：{{num>0?1:0}}</div> 
         {{desc}}
     </div>
 </body>
@@ -69,6 +70,7 @@
                         addr: 'beijing'
                     }
                 ],
+                $num:3,
                 progress: 1.321,
                 name: 'kyle',
                 str: "hello nodom!",
