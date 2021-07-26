@@ -26,6 +26,7 @@ export class Model {
 
         let proxy = new Proxy(data, {
             set: (src: any, key: string, value: any, receiver: any) => {
+                
                 //值未变,proxy 不处理
                 if (src[key] === value) {
                     return true;
@@ -54,9 +55,9 @@ export class Model {
                 //     return Reflect.get(arrayFunc, key, receiver)
                 // }
                 let res = Reflect.get(src, key, receiver);
-                let data = module.modelManager.getFromDataMap(src[key])
+                let data = module.modelManager.getFromDataMap(src[key]);
                 if (data) {
-                    return data
+                    return data;
                 }
                 if (typeof res === 'object' && res !== null) {
                     //如果是的对象，则返回代理，便于后续激活get set方法                   
