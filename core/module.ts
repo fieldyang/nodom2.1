@@ -344,33 +344,25 @@ export class Module {
                 root.compare(oldTree, this.renderDoms, deleteMap);
                 //刪除和替換
                 deleteMap.forEach((value, key) => {
-                    let dp = this.getNode(key);
+                    let dp:HTMLElement = this.getNode(key);
                     for (let i = value.length - 1; i >= 0; i--) {
                         let index = value[i];
                         if (typeof index == 'string') {
                             let parm = index.split('|');
                             index = parm[0];
-                            let vdom = root.query(parm[1]);
+                            const vDom: Element = root.query(parm[1]);
                             dp.insertBefore((() => {
-                                let el;
-                                if (vdom.getTmpParam('isSvgNode')) {
-                                    el = Util.newSvgEl(vdom.tagName);
-                                } else {
-                                    el = Util.newEl(vdom.tagName);
-                                }
+                                const el: HTMLElement | SVGElement = vDom.getTmpParam('isSvgNode') ? Util.newSvgEl(vDom.tagName) : Util.newEl(vDom.tagName);
                                 //设置属性
-                                Util.getOwnProps(vdom.props).forEach((k) => {
-                                    el.setAttribute(k, vdom.props[k]);
-                                });
-                                el.setAttribute('key', vdom.key);
-                                vdom.handleNEvents(module, el, parent);
-                                vdom.handleAssets(el);
+                                Util.getOwnProps(vDom.props).forEach(k => el.setAttribute(k, vDom.props[k]));
+                                el.setAttribute('key', vDom.key);
+                                vDom.handleNEvents(this, el, vDom.parent);
+                                vDom.handleAssets(el);
                                 return el;
                             })(), dp.childNodes[index++]);
                         }
-                        if (index != null && index != undefined)
                             dp.removeChild(dp.childNodes[index]);
-                    }
+                    } 
                 });
                 deleteMap.clear();
 
@@ -380,7 +372,7 @@ export class Module {
                 });
             }
             //执行每次渲染后事件
-            this.doModuleEvent('onRender');
+            this.doModuleEvent('onRender'); 
         }
         //数组还原
         this.renderDoms = [];

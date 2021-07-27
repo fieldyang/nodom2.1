@@ -483,7 +483,7 @@ export class Element {
      * 处理asset，在渲染到html时执行
      * @param el    dom对应的html element
      */
-    public handleAssets(el: HTMLElement) {
+    public handleAssets(el: HTMLElement|SVGElement) {
         if (!this.tagName || !el) {
             return;
         }
