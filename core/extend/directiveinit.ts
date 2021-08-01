@@ -487,93 +487,98 @@ export default (function () {
     DirectiveManager.addType('animation',
         9,
         (directive: Directive, dom: Element) => {
-            if (typeof directive.value === 'string') {
-                // 转换成json数据
-                let arr: Array<any> = directive.value.trim().split("|");
-                if (!Util.isArray(arr)) {
-                    return;
-                }
-                if (Util.isString(arr[0])) {
-                    arr[0] = arr[0].trim();
-                    arr[0] = new Expression(arr[0])
-                }
-                if (Util.isString(arr[1])) {
-                    //如果是字符串，转换为表达式
-                    arr[1] = new Expression(arr[1]);
-                } else {
-                    arr[1] = arr[1].trim();
-                }
-                if (arr[2]) {
-                    arr[2] = arr[2].trim();
-                }
-                directive.value = arr;
+            let arr = directive.value.trim().split('|');
+            if (arr[0].trim().startsWith('{')) {
+                arr[0] = new Function(`return  ${arr[0]}`)();
             }
+            // 渲染标志
+            if (arr[1]) {
+                arr[1] = new Expression(arr[1].trim());
+            } else {
+                arr[1] = true; // 如果没有传入渲染标志，则说明只需要在元素渲染的时候启用动画。直接吧渲染标志设置成true
+            }
+            directive.value = arr;
         },
         (directive: Directive, dom: Element, module: Module, parent: Element) => {
             let arr = directive.value;
+            let confObj;
+            if (!Util.isObject(arr[0])) {
+                confObj = dom.model.$query(arr[0]);
+            } else {
+                confObj = arr[0];
+            }
+            if (!Util.isObject(confObj)) {
+                return new NError('animation配置必须是一个对象')
+            }
+
             let clsArr: Array<string> = [];
             let cls: string = dom.getProp('class');
             let model = dom.model;
             if (Util.isString(cls) && !Util.isEmpty(cls)) {
                 clsArr = cls.trim().split(/\s+/);
             }
-            let r0 = arr[0];
-            let r1 = arr[1];
-            if (r0 instanceof Expression) {
-                r0 = r0.val(model, dom);
-            }
-            if (r1 instanceof Expression) {
-                r1 = r1.val(model, dom);
+
+            let renderFlag = arr[1];
+            let nameEnter = confObj.name?.enter || confObj.name;
+            let nameLeave = confObj.name?.leave || confObj.name;
+            let hiddenMode = confObj.hiddenMode || 'visibility';
+            let durationEnter = confObj.duration?.enter || '0.3s';
+            let durationLeave = confObj.duration?.leave || '0.3s';
+            let delayEnter = confObj.delay?.enter || '0s'; // 如果不配置则默认不延迟
+            let delayLeave = confObj.delay?.leave || '0s';// 如果不配置则默认不延迟
+            if (renderFlag instanceof Expression) {
+                renderFlag = renderFlag.val(model, dom);
             }
             let el: HTMLElement = document.querySelector(`[key='${dom.key}']`)
-            // 定义动画结束回调。用于在离开动画结束的时候隐藏dom并且清除事件监听
+            // 定义动画结束回调。
             let handler = () => {
-                // 这里面需要判断当前是在进入动画还是离开动画。
-                // 在离开动画还没有播完的时候触发进入动画，当进入动画完成之后还是会执行handler 导致DOM被隐藏
-                let r1 = arr[1]
-                if (r1 instanceof Expression) {
-                    r1 = r1.val(model, dom);
-                }
-                if (!r1 || r1 === 'false') {
-                    if (arr[2] && arr[2] == 'visibility') {
+                // 离开动画结束之后隐藏元素
+                if (!renderFlag || renderFlag === 'false') {
+                    if (hiddenMode && hiddenMode == 'visibility') {
                         el.style.visibility = 'hidden';
                     } else {
                         el.style.display = 'none';
                     }
                 }
+                el.classList.remove("nd-animation-" + nameEnter + "-enter");
+                el.classList.remove("nd-animation-" + nameLeave + "-leave");
                 el.removeEventListener('animationend', handler);
             }
-            if (!r1 || r1 === 'false') {
+            if (!renderFlag || renderFlag === 'false') {
                 // 从显示切换到隐藏。
                 if (el) {
-                    if (el.classList.contains("nd-animation-" + r0 + "-enter")) {
-                        // 这里再判断一下有没有进入的过渡类名，如果没有则不播放离开动画，可能是插件触发了两次渲染。
-                        // 为了触发动画
-                        //  1. 删除原来的动画属性
-                        // el.classList.remove("nd-animation-" + arr[0] + "-leave")
-                        el.classList.remove("nd-animation-" + r0 + "-enter");
-                        // 操作了真实dom，虚拟dom也要做相应的变化，否则可能导致第二次渲染属性不一致
-                        dom.removeClass("nd-animation-" + r0 + "-enter");
-                        //  2.重新定位一次元素。 本来是el.offsetWidth=el.offsetWidth的
-                        //    下面是严格模式下的替代方案
-                        void el.offsetWidth
-                        //  3.添加新的动画
-                        el.classList.add("nd-animation-" + r0 + "-leave");
-                        // 操作了真实dom，虚拟dom也要做相应的变化，否则可能导致第二次渲染属性不一致
-                        dom.addClass("nd-animation-" + r0 + "-leave");
-                        // 添加动画结束监听
-                        el.addEventListener('animationend', handler);
-                    } else {
-                        if (arr[2] && arr[2] == 'visibility') {
-                            dom.addStyle('visibility:hidden')
+                    if (el.style.visibility == 'hidden' || el.style.display == 'none') {
+                        // 当前处于隐藏，没有必要播放动画
+                        if (hiddenMode && hiddenMode == 'visibility') {
+                            el.style.visibility = 'hidden';
+                            dom.addStyle('visibility:hidden');
                         } else {
+                            el.style.display = 'none';
                             dom.addStyle('display:none');
                         }
                         return;
                     }
+                    // 为了触发动画
+                    //  1. 删除原来的动画属性
+                    el.classList.remove("nd-animation-" + nameEnter + "-enter");
+                    // 操作了真实dom，虚拟dom也要做相应的变化，否则可能导致第二次渲染属性不一致
+                    dom.removeClass("nd-animation-" + nameEnter + "-enter");
+                    //  2.重新定位一次元素。 本来是el.offsetWidth=el.offsetWidth的
+                    //    下面是严格模式下的替代方案
+                    void el.offsetWidth
+                    // 控制播放时间
+                    el.style.animationDuration = durationLeave;
+                    el.style.animationDelay = delayLeave;
+                    dom.addStyle(`animation-duration:${durationEnter};animation-delay:${delayEnter}`);
+                    //  3.添加新的动画
+                    el.classList.add("nd-animation-" + nameLeave + "-leave");
+                    // 操作了真实dom，虚拟dom也要做相应的变化，否则可能导致第二次渲染属性不一致
+                    dom.addClass("nd-animation-" + nameLeave + "-leave");
+                    // 添加动画结束监听
+                    el.addEventListener('animationend', handler);
                 } else {
                     // 不显示，并且也没有el 比如poptip
-                    if (arr[2] && arr[2] == 'visibility') {
+                    if (hiddenMode && hiddenMode == 'visibility') {
                         dom.addStyle("visibility:hidden");
                     } else {
                         dom.addStyle("display:none");
@@ -583,29 +588,52 @@ export default (function () {
             } else {
                 // 从隐藏切换到显示
                 if (el) {
-                    //  1. 删除原来的动画属性
-                    // if (!el.classList.contains("nd-animation-" + r0 + "-leave")) {
-                    // 判断一下有没有离开的过渡类名，如果没有，则不播放进入动画，有可能是repeat触发的重复渲染。
-                    el.classList.remove("nd-animation-" + r0 + "-leave");
-                    // 操作了真实dom，虚拟dom也要做相应的变化，否则可能导致第二次渲染属性不一致
-                    dom.removeClass("nd-animation-" + r0 + "-leave");
-                    //  2.重新定位一次元素。 本来是el.offsetWidth=el.offsetWidth的
-                    //    下面是严格模式下的替代方案
-                    void el.offsetWidth
-                    //  3.添加新的动画
-                    el.classList.add("nd-animation-" + r0 + "-enter");
-                    // 操作了真实dom，虚拟dom也要做相应的变化，否则可能导致第二次渲染属性不一致
-                    dom.addClass('nd-animation-' + r0 + '-enter');
-                    if (arr[2] && arr[2] == 'visibility') {
-                        el.style.visibility = 'visible';
+                    if (el.style.visibility == 'hidden' || el.style.display == 'none') {
+                        // 当前处于隐藏
+                        // 手动设置延时
+                        let delay = parseFloat(delayEnter) * 1000;
+                        // 因为下面是异步执行,所有这一次不能让元素先展示出来
+                        if (hiddenMode && hiddenMode == 'visibility') {
+                            el.style.visibility = 'hidden';
+                            dom.addStyle('visibility:hidden');
+                        } else {
+                            el.style.display = 'none';
+                            dom.addStyle('display:none');
+                        }
+                        // 进入动画要手动设置延时.否则通过animation-delay属性会先显示元素,然后计算延时,然后再播放动画.
+                        setTimeout(() => {
+                            // 先切换成显示状态,再触发动画
+                            if (hiddenMode && hiddenMode == 'visibility') {
+                                el.style.visibility = 'visible';
+                            } else {
+                                el.style.display = '';
+                            }
+                            //  1. 删除原来的动画属性
+                            el.classList.remove("nd-animation-" + nameLeave + "-leave");
+                            // 操作了真实dom，虚拟dom也要做相应的变化，否则可能导致第二次渲染属性不一致
+                            dom.removeClass("nd-animation-" + nameLeave + "-leave");
+                            //  2.重新定位一次元素。 本来是el.offsetWidth=el.offsetWidth的
+                            //    下面是严格模式下的替代方案
+                            void el.offsetWidth
+                            // 控制播放时间
+                            el.style.animationDuration = durationEnter;
+                            // 动画延时播放时间
+                            el.style.animationDelay = "0s";
+                            dom.addStyle(`animation-duration:${durationEnter};animation-delay:0s`);//
+                            //  3.添加新的动画
+                            el.classList.add("nd-animation-" + nameEnter + "-enter");
+                            // 操作了真实dom，虚拟dom也要做相应的变化，否则可能导致第二次渲染属性不一致
+                            dom.addClass('nd-animation-' + nameEnter + '-enter');
+                            // 添加动画结束监听
+                            el.addEventListener('animationend', handler);
+                        }, delay);
+
                     } else {
-                        el.style.display = '';
+                        // 当前处于显示状态 
+                        // 为了不重复播放显示动画，这里直接返回
+                        return;
                     }
-                    // }
                 } else {
-                    // 显示，但是没有el  比如repeat出来的元素一开始就要显示
-                    dom.addClass('nd-animation-' + r0 + '-enter');
-                    dom.dontRender = false;
                 }
             }
         }
@@ -739,7 +767,7 @@ export default (function () {
                 dataValue += '';
             }
 
-            let value = dom.getProp('value');
+            let value = dom.getProp('value', true);
 
             if (type === 'radio') {
                 if (dataValue + '' === value) {
