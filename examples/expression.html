@@ -16,6 +16,7 @@
 <body>
     <div class="view">
         <div>多级数据：{{ac.age.as}}</div>
+        <h2>数据计算</h2>
         <div>价格：{{(Math.round((price * discount)))|currency + 'hello'}}</div>
         <div>折扣：{{$cacDis(price*discount)}}</div>
         <div>描述：{{30 +$addStr('hello' + desc) + 20}}</div>

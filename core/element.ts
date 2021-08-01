@@ -372,7 +372,7 @@ export class Element {
     public clone(changeKey?: boolean): Element {
         let dst: Element = new Element();
         //不直接拷贝的属性
-        let notCopyProps: string[] = ['parent', 'directives', 'children', 'defineEl', 'model'];
+        let notCopyProps: string[] = ['parent', /*'directives',  'defineEl',*/,'children','model'];
         //简单属性
         Util.getOwnProps(this).forEach((p) => {
             if (notCopyProps.includes(p)) {
@@ -391,7 +391,7 @@ export class Element {
         }
 
         //define element复制
-        if (this.defineEl) {
+        /*if (this.defineEl) {
             if (changeKey) {
                 dst.defineEl = this.defineEl.clone(dst);
             } else {
@@ -406,11 +406,12 @@ export class Element {
             }
             dst.directives.push(d);
         }
-
+        */
         //孩子节点
         for (let c of this.children) {
             dst.add(c.clone(changeKey));
         }
+        
         return dst;
     }
 
@@ -482,7 +483,7 @@ export class Element {
      * 处理asset，在渲染到html时执行
      * @param el    dom对应的html element
      */
-    public handleAssets(el: HTMLElement) {
+    public handleAssets(el: HTMLElement|SVGElement) {
         if (!this.tagName || !el) {
             return;
         }
@@ -526,19 +527,20 @@ export class Element {
 
     /**
      * 移除指令
-     * @param directives 	待删除的指令类型数组
+     * @param directives 	待删除的指令类型数组或指令类型
      */
-    public removeDirectives(directives: string[]) {
-        for (let i = 0; i < this.directives.length; i++) {
-            if (directives.length === 0) {
-                break;
+    public removeDirectives(directives: string|string[]) {
+        if(typeof directives === 'string'){
+            let ind;
+            if((ind=this.directives.findIndex(item=>item.type.name === directives)) !== -1){
+                this.directives.splice(ind,1);
             }
-            for (let j = 0; j < directives.length; j++) {
-                if (directives[j].includes(this.directives[i].type.name)) {
-                    this.directives.splice(i--, 1);
-                    directives.splice(j--, 1);
-                    break;
-                }
+            return;
+        }
+        for(let d of directives){
+            let ind;
+            if((ind=this.directives.findIndex(item=>item.type.name === d)) !== -1){
+                this.directives.splice(ind,1);
             }
         }
     }

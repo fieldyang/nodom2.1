@@ -20,7 +20,7 @@
 
 <body>
     <div class="view">
-        <button  e-click='show'>show</button>
+        <button  e-click='pop'>pop</button>
         <div class="tip">基本使用</div>
         <div class="code">
             菜单：
@@ -103,9 +103,8 @@
                     
                     return a;
                 },
-                show:function(dom,model){
-                    console.log(model);
-                    model.set('show',1);
+                pop:function(){
+                    this.foods.pop();
                 }
             }
         }

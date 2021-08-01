@@ -9,7 +9,6 @@ import { Route } from "./router";
 import { Scheduler } from "./scheduler";
 import { IAppCfg, IMdlClassObj, IRouteCfg } from "./types";
 import { Util } from "./util";
-
 /**
  * nodom提示消息
  */

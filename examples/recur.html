@@ -33,7 +33,7 @@
 		<h2>递归指令</h2>
 		<div class="view">
 			<button e-click="show">show</button>
-			<h3>简单使用</h3>
+			<!-- <h3>简单使用</h3>
 			<div x-recur="ritem">
 				<span class="{{cls}}">{{title}}</span>
 			</div>
@@ -42,9 +42,9 @@
 				<ul class="{{cls}}">
 					<li x-repeat="items">{{title}}</li>
 				</ul>
-			</div>
-			<h3>与repeat一起使用</h3>
-			<div x-repeat='items' x-recur='items'>
+			</div> -->
+			<h3>递归带数组</h3>
+			<div x-model='recItem' x-recur='items'>
 				<div>{{title}}</div>
 			</div>
 		</div>
@@ -80,37 +80,40 @@
 							},
 						},
 					},
-					items:[
-						{
-							title:'aaa',
-							items:[{
-								title:'aaa1',
-								items:[
-									{title:'aaa11'},
-									{title:'aaa12'}
-								]},{
-								title:'aaa2',
-								items:[
-									{title:'aaa21'},
-									{title:'aaa22'}
-								]}
-							]
-						},{
-							title:'bbb',
-							items:[{
-								title:'bbb1',
-								items:[
-									{title:'bbb11'},
-									{title:'bbb12'}
-								]},{
-								title:'bbb2',
-								items:[
-									{title:'bbb21'},
-									{title:'bbb22'}
-								]}
-							]
-						}
-					]
+					recItem:{
+						items:[
+							{
+								title:'aaa',
+								items:[{
+									title:'aaa1',
+									items:[
+										{title:'aaa11'},
+										{title:'aaa12'},
+										{title:'aaa13'}
+									]},{
+									title:'aaa2',
+									items:[
+										{title:'aaa21'},
+										{title:'aaa22'}
+									]}
+								]
+							},{
+								title:'bbb',
+								items:[{
+									title:'bbb1',
+									items:[
+										{title:'bbb11'},
+										{title:'bbb12'}
+									]},{
+									title:'bbb2',
+									items:[
+										{title:'bbb21'},
+										{title:'bbb22'}
+									]}
+								]
+							}
+						]
+					}
 				},
 				methods: {
 					show: function (dom, model) {
