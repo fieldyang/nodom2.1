@@ -186,14 +186,20 @@ export class Compiler {
         result = result.map((item) => {
             // 如果match为空说明属性串里面没有“”也就是自定义的只有属性名没有属性值得属性，这种直接给他的value字段设置为空就行了
 
-            const o = item.match(/^(.+)=[\'|\"|\{]([\s\S]*)[\'|\"|\}]$/) || [, item];
-            if (o[2] && o[2].startsWith('{')) {
-                o[2] = '{' + o[2] + '}';
+            const o = item.match(/^(.+)=[\'|\"]([\s\S]*)[\'|\"]$/) || [, item];
+            const e = item.match(/^(.+)=(\{\{[\s\S]*\}\})$/);
+            if (e) {
+                return {
+                    propName: e[1],
+                    value: e[2] ? e[2] : '',
+                }
+            } else {
+                return {
+                    propName: o[1],
+                    value: o[2] ? o[2] : '',
+                };
             }
-            return {
-                propName: o[1],
-                value: o[2] ? o[2] : '',
-            };
+
         });
         return result;
     }
@@ -363,7 +369,8 @@ export class Compiler {
         if (/\{\{.+?\}\}/.test(exprStr) === false) {
             return exprStr;
         }
-        let reg: RegExp = /\{\{.+?\}\}$/g;
+        // \}?\s*
+        let reg: RegExp = /\{\{.+?\}?\s*\}\}/g;
         let retA = new Array();
         let re: RegExpExecArray;
         let oIndex: number = 0;
