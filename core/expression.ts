@@ -31,6 +31,8 @@ export class Expression {
         this.id = Util.genId();
         let execStr: string;
         if (exprStr) {
+            console.log(exprStr);
+            
             execStr = this.compile(exprStr);
         }
         if (execStr) {
@@ -222,7 +224,7 @@ export class Expression {
         if (express.indexOf('instanceof') !== -1) {
             fields.push(express.split(' ')[0]);
         }
-        let exclude = ['.', '$module', '##TMP', 'TMP'];
+        let exclude = ['.', '$module', '##TMP', 'TMP','this'];
         fields = [...(new Set(fields))].filter((v) => {
             return v != null && exclude.reduce((sum, value) => {
                 return sum === 0 ? 0 : (!v.startsWith(value) ? 1 : 0);
@@ -257,7 +259,8 @@ export class Expression {
         valueArr.unshift(module);
         let v;
         try {
-            v = this.execFunc.apply(null, valueArr);
+             v = this.execFunc.apply(module, valueArr);
+             // v = this.execFunc.apply(null, valueArr);
         } catch (e) {
         }
         return v === undefined || v === null ? '' : v;

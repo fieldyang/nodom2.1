@@ -160,6 +160,8 @@ export class Element {
                 this.doDontRender();
                 return false;
             }
+
+
             this.handleProps(module);
         } else { //textContent
             this.handleTextContent(module);
@@ -317,7 +319,8 @@ export class Element {
             }
             //设置属性
             Util.getOwnProps(vdom.props).forEach((k) => {
-                el.setAttribute(k, vdom.props[k]);
+                if (typeof vdom.props[k] != 'function')
+                    el.setAttribute(k, vdom.props[k]);
             });
 
             el.setAttribute('key', vdom.key);
@@ -372,7 +375,7 @@ export class Element {
     public clone(changeKey?: boolean): Element {
         let dst: Element = new Element();
         //不直接拷贝的属性
-        let notCopyProps: string[] = ['parent', /*'directives',  'defineEl',*/,'children','model'];
+        let notCopyProps: string[] = ['parent', 'directives', 'defineEl', 'children', 'model'];
         //简单属性
         Util.getOwnProps(this).forEach((p) => {
             if (notCopyProps.includes(p)) {
@@ -391,13 +394,14 @@ export class Element {
         }
 
         //define element复制
-        /*if (this.defineEl) {
+        if (this.defineEl) {
             if (changeKey) {
                 dst.defineEl = this.defineEl.clone(dst);
             } else {
                 dst.defineEl = this.defineEl;
             }
         }
+
 
         //指令复制
         for (let d of this.directives) {
@@ -406,12 +410,12 @@ export class Element {
             }
             dst.directives.push(d);
         }
-        */
+
         //孩子节点
         for (let c of this.children) {
             dst.add(c.clone(changeKey));
         }
-        
+
         return dst;
     }
 
@@ -438,6 +442,10 @@ export class Element {
     public handleExpression(exprArr: Array<Expression | string>, module: Module) {
         let model: Model = this.model;
         let value = '';
+        if (exprArr.length === 1 && typeof exprArr[0] !== 'string') {
+            let v1 = exprArr[0].val(model, this);
+            return v1 !== undefined ? v1 : '';
+        }
         exprArr.forEach((v) => {
             if (v instanceof Expression) { //处理表达式
                 let v1 = v.val(model, this);
@@ -455,6 +463,7 @@ export class Element {
       */
     public handleProps(module: Module) {
         for (let k of Util.getOwnProps(this.exprProps)) {
+
             //属性值为数组，则为表达式
             if (Util.isArray(this.exprProps[k])) {
                 let pv = this.handleExpression(this.exprProps[k], module);
@@ -483,7 +492,7 @@ export class Element {
      * 处理asset，在渲染到html时执行
      * @param el    dom对应的html element
      */
-    public handleAssets(el: HTMLElement|SVGElement) {
+    public handleAssets(el: HTMLElement | SVGElement) {
         if (!this.tagName || !el) {
             return;
         }
@@ -529,18 +538,18 @@ export class Element {
      * 移除指令
      * @param directives 	待删除的指令类型数组或指令类型
      */
-    public removeDirectives(directives: string|string[]) {
-        if(typeof directives === 'string'){
+    public removeDirectives(directives: string | string[]) {
+        if (typeof directives === 'string') {
             let ind;
-            if((ind=this.directives.findIndex(item=>item.type.name === directives)) !== -1){
-                this.directives.splice(ind,1);
+            if ((ind = this.directives.findIndex(item => item.type.name === directives)) !== -1) {
+                this.directives.splice(ind, 1);
             }
             return;
         }
-        for(let d of directives){
+        for (let d of directives) {
             let ind;
-            if((ind=this.directives.findIndex(item=>item.type.name === d)) !== -1){
-                this.directives.splice(ind,1);
+            if ((ind = this.directives.findIndex(item => item.type.name === d)) !== -1) {
+                this.directives.splice(ind, 1);
             }
         }
     }
@@ -602,13 +611,13 @@ export class Element {
             dom.forEach(v => {
                 v.parentKey = this.key;
                 //将parent也附加上，增量渲染需要
-                v.parent=this;
+                v.parent = this;
             });
             this.children.push(...dom);
         } else {
             dom.parentKey = this.key;
             this.children.push(dom);
-            dom.parent=this;
+            dom.parent = this;
         }
 
     }
@@ -1045,7 +1054,7 @@ export class Element {
             return newElement.key === oldElement.key;
         }
         //添加刪除替換的key
-        function addDelKey(element:Element, type?: string) {
+        function addDelKey(element: Element, type?: string) {
             let pKey: string = element.parentKey;
             if (!deleteMap.has(pKey)) {
                 deleteMap.set(pKey, new Array());
@@ -1160,7 +1169,7 @@ export class Element {
                 m = module.getMethod(m);
             }
             if (m) {
-                m.apply(this.model, [module, this]);
+                m.apply(this.model, [this, module]);
             }
         }
 

@@ -26,5 +26,10 @@ class ModuleB extends nodom.Module {
         });
         super(config);
     }
+    update=(data)=>{
+        console.log(data);
+        console.log(this);
+        this.model['msg1']=data
+    }
 }
 //# sourceMappingURL=moduleb.js.map

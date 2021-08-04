@@ -20,9 +20,13 @@
 
 <body>
 	<div>
+		<!-- <div x-module='ModuleC|modc1' update={{this.add}}></div> -->
+		{{sum}}
+		<div name='{{sum}}'>1</div>
 		<button e-click="click">click</button>
 		<h3>普通模块,插槽</h3>
-		<div x-module="ModuleA|mod0" data="data/data1.json">
+		<!-- peak={{this.add}} -->
+		<div x-module="ModuleA|mod0" data="data/data1.json" peak={{sum}}>
 			<div x-slot="title">周一</div>
 			<div x-slot="btn1">
 				<button>特殊点击</button>
@@ -43,7 +47,7 @@
 			</div>
 		</md-a>
 		<h4>自定义模块名</h4>
-		<title></title>
+		<title peak={{this.add}}></title>
 
 
 		<hr>
@@ -79,6 +83,7 @@
 						data: "data/data2.json",
 					},
 				],
+				sum:0
 			},
 			methods: {
 				click: function (dom, model, module, e, el) {
@@ -92,6 +97,12 @@
 						name: "title",
 						class: "ModuleA",
 					}];
+				},
+				onBeforeFirstRender:function(module){
+					//父子通信
+					module.add=(num)=>{
+							this['sum']+=num;
+					}
 				},
 			},
 		}

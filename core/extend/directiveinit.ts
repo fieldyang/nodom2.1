@@ -57,6 +57,7 @@ export default (function () {
             }
             if (needNew) {
                 let m: Module = await ModuleFactory.getInstance(directive.value, dom.getProp('modulename'), dom.getProp('data'));
+
                 if (m) {
                     //保存绑定moduleid
                     m.setContainerKey(dom.key);
@@ -67,6 +68,7 @@ export default (function () {
                         dir.extra.moduleId = m.id;
                     }
                     module.addChild(m.id);
+                     m.virtualDom.props= Util.clone(dom.props);
                     //插槽
                     if (dom.children.length > 0) {
                         let slotMap: Map<string, Element> = new Map();

@@ -16,12 +16,27 @@ class ModuleA extends nodom.Module {
             `,
             requires:[{type:'css',url:'index.css'}],
             methods: {
-                addData: function (dom,model) {
-                    console.log(model.data);
-                    model.data.foods.push({ id: 4, name: '烤羊蹄', price: '58' });
+                addData: function (dom,module) {
+                    if(module.renderTree.props.peak){
+                        const {peak} =module.renderTree.props;
+                        peak(3);
+                    }
+                    console.log(module.renderTree.props);
+                    // model.data.foods.push({ id: 4, name: '烤羊蹄', price: '58' });
                 },
                 sendMsg: function (dom, model, module) {
                     module.send('modb1', 'hello',1);
+                },
+                onFirstRender:function(module){
+                   
+                    // if(module.renderTree.props.peak){
+                    //     const {peak} =module.renderTree.props; 
+                    //     peak(1);
+                    // }
+                 
+                },
+                add(){
+                    console.log('add',this);
                 }
             },
             data:{
@@ -32,6 +47,9 @@ class ModuleA extends nodom.Module {
             }
         });
         super(config);
+    }
+    add=()=>{
+        console.log(this);
     }
 }
 //# sourceMappingURL=modulea.js.map
