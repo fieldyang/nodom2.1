@@ -57,6 +57,7 @@ export default (function () {
             }
             if (needNew) {
                 let m: Module = await ModuleFactory.getInstance(directive.value, dom.getProp('modulename'), dom.getProp('data'));
+
                 if (m) {
                     //保存绑定moduleid
                     m.setContainerKey(dom.key);
@@ -67,6 +68,10 @@ export default (function () {
                         dir.extra.moduleId = m.id;
                     }
                     module.addChild(m.id);
+                    //传props值
+                    m.props = Util.clone(dom.props);
+                    
+                   
                     //插槽
                     if (dom.children.length > 0) {
                         let slotMap: Map<string, Element> = new Map();
@@ -79,14 +84,12 @@ export default (function () {
                         if (slotMap.size > 0) {
                             let oldMap = findSlot(m.virtualDom);
                             //原模块
-                            oldMap.forEach(slot => {
-                                let pd: Element = m.getElement(slot.parentKey, true);
-                                let index = pd.children.findIndex((v: Element) => { return v.key === slot.key; });
-                                if (index >= 0) {
-                                    if (slotMap.has(slot.getTmpParam('slotName'))) {
-                                        pd.children.splice(index, 1, slotMap.get(slot.getTmpParam('slotName')));
+                            oldMap.forEach(obj => {
+                                const { index, slotName, pd } = obj;
+
+                                    if (slotMap.has(slotName)) {
+                                        pd.children.splice(index, 1, slotMap.get(slotName));
                                     }
-                                }
                             })
                         }
                     }
@@ -96,9 +99,13 @@ export default (function () {
             } else if (subMdl && subMdl.state !== 3) {
                 await subMdl.active();
             }
-            function findSlot(dom: Element, res = new Map()) {
+            function findSlot(dom: Element, res = new Array()) {
                 if (dom.hasTmpParam('slotName')) {
-                    res.set(dom.getTmpParam('slotName'), dom);
+                    res.push({
+                        index: dom.parent.children.indexOf(dom),
+                        slotName: dom.getTmpParam('slotName'),
+                        pd: dom.parent
+                    });
                     return;
                 }
                 dom.children.forEach(v => {

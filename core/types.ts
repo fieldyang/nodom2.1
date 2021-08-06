@@ -106,6 +106,11 @@ export interface IAppCfg {
      * onLeave:路由离开事件
      */
     routes: IRouteCfg[];
+
+    /**
+     * 状态管理对象，实例化后引入
+     */
+    store:Object;
 }
 
 
@@ -218,6 +223,11 @@ export interface IModuleCfg {
      * 如果为object，则格式为{type:'js'/'css',url:路径}
      */
     requires?: Array<string | Object>;
+
+    /**
+     * 实例化后的状态管理对象，配置后，所有模块可见
+     */
+    store?:object
 }
 
 /**

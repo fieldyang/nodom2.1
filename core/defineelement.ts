@@ -68,10 +68,10 @@ export class DefineElement {
 
     /**
      * 前置渲染方法(dom render方法中获取modelId和parentKey后执行)
-     * @param module    模块
      * @param uidom     虚拟dom
+     * @param  module    模块
      */
-    public beforeRender(module: Module, uidom: Element) {
+    public beforeRender(uidom: Element, module: Module) {
         let me = uidom.defineEl;
         me.element = uidom;
         me.moduleId = module.id;

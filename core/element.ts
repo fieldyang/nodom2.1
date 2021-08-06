@@ -160,6 +160,8 @@ export class Element {
                 this.doDontRender();
                 return false;
             }
+
+
             this.handleProps(module);
         } else { //textContent
             this.handleTextContent(module);
@@ -317,7 +319,8 @@ export class Element {
             }
             //设置属性
             Util.getOwnProps(vdom.props).forEach((k) => {
-                el.setAttribute(k, vdom.props[k]);
+                if (typeof vdom.props[k] != 'function')
+                    el.setAttribute(k, vdom.props[k]);
             });
 
             el.setAttribute('key', vdom.key);
@@ -399,6 +402,7 @@ export class Element {
             }
         }
 
+
         //指令复制
         for (let d of this.directives) {
             if (changeKey) {
@@ -437,6 +441,10 @@ export class Element {
     public handleExpression(exprArr: Array<Expression | string>, module: Module) {
         let model: Model = this.model;
         let value = '';
+        if (exprArr.length === 1 && typeof exprArr[0] !== 'string') {
+            let v1 = exprArr[0].val(model, this);
+            return v1 !== undefined ? v1 : '';
+        }
         exprArr.forEach((v) => {
             if (v instanceof Expression) { //处理表达式
                 let v1 = v.val(model, this);
@@ -454,6 +462,7 @@ export class Element {
       */
     public handleProps(module: Module) {
         for (let k of Util.getOwnProps(this.exprProps)) {
+
             //属性值为数组，则为表达式
             if (Util.isArray(this.exprProps[k])) {
                 let pv = this.handleExpression(this.exprProps[k], module);
@@ -1159,7 +1168,7 @@ export class Element {
                 m = module.getMethod(m);
             }
             if (m) {
-                m.apply(this.model, [module, this]);
+                m.apply(this.model, [this, module]);
             }
         }
     }
