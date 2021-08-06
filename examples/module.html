@@ -20,7 +20,7 @@
 
 <body>
 	<div>
-		<!-- <div x-module='ModuleC|modc1' update={{this.add}}></div> -->
+		<div x-module='ModuleC|modc1' update={{this.add}}></div>
 		{{sum}}
 		<div name='{{sum}}'>1</div>
 		<button e-click="click">click</button>
@@ -35,8 +35,8 @@
 		</div>
 
 		<h3>自定义模块类名</h3>
-		<send-message moduleName='send' age='10'>
-		</send-message>
+		<Send moduleName='send' age='10'>
+		</Send>
 
 		<md-a moduleName='title1'>
 			<div x-slot='title'>
@@ -66,7 +66,7 @@
 		</ul>
 
 		<p>模块1包含两个子模块</p>
-		<div x-module="ModuleB|modb1"></div>
+		<div x-module="ModuleB|modb1"></div> -->
 	</div>
 </body>
 <script>
@@ -105,7 +105,8 @@
 					}
 				},
 			},
-		}
+		},
+		
 	});
 </script>
 

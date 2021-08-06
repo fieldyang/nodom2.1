@@ -5,7 +5,7 @@ import { Element } from "./element";
 import { NError } from "./error";
 import { Model } from "./model";
 import { Module } from "./module";
-import { NodomMessage } from "./nodom";
+import { NodomMessage, store } from "./nodom";
 import { ResourceManager } from "./resourcemanager";
 import { IMdlClassObj } from "./types";
 import { Util } from "./util";
@@ -179,7 +179,9 @@ export class ModuleFactory {
                 data: cfg.data,
                 lazy: cfg.lazy
             }]);
-
+            if(store){
+               instance.store=store;
+            }
             //模块初始化
             await instance.init();
             cfg.instance = instance;

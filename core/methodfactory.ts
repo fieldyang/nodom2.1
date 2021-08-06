@@ -21,4 +21,5 @@ export class MethodFactory extends NFactory {
         }
         return Util.apply(foo, this.module.model, params);
     }
+
 }

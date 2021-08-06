@@ -11,6 +11,7 @@ class ModuleB extends nodom.Module {
                 msg1: ''
             },
             methods: {
+           
                 sendMsg: function (dom, model, module) {
                     module.broadcast(model.data.msg);
                 },

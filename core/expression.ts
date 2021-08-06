@@ -31,8 +31,6 @@ export class Expression {
         this.id = Util.genId();
         let execStr: string;
         if (exprStr) {
-            console.log(exprStr);
-            
             execStr = this.compile(exprStr);
         }
         if (execStr) {

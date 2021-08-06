@@ -41,7 +41,7 @@ export class DefineElement {
     /**
      * 是否需要前置渲染
      */
-    // needPreRender: boolean;
+    needPreRender: boolean;
 
     /**
      * 附加数据项名
@@ -51,10 +51,10 @@ export class DefineElement {
     /**
      * 需要改绑的model名
      */
-    // parentDataName: string;
+    parentDataName: string;
 
     constructor(params: HTMLElement | Object | Element) {
-        if(params instanceof Element){
+        if (params instanceof Element) {
             this.element = params;
         }
     }
@@ -64,14 +64,14 @@ export class DefineElement {
      * @param dom       dom插件所属节点
      * @param parent    父节点
      */
-    public init(dom: Element, parent?: Element) {}
+    public init(dom: Element, parent?: Element) { }
 
     /**
      * 前置渲染方法(dom render方法中获取modelId和parentKey后执行)
-     * @param module    模块
      * @param uidom     虚拟dom
+     * @param  module    模块
      */
-    /*public beforeRender(module: Module, uidom: Element) {
+    public beforeRender(uidom: Element, module: Module) {
         let me = uidom.defineEl;
         me.element = uidom;
         me.moduleId = module.id;
@@ -92,7 +92,7 @@ export class DefineElement {
         } else {
             me.needPreRender = false;
         }
-    }*/
+    }
     /**
      * 后置渲染方法(dom render结束后，渲染到html之前)
      * @param module    模块
@@ -104,20 +104,20 @@ export class DefineElement {
      * 克隆
      */
     public clone(dst?: Element) {
-        return Reflect.construct(this.constructor, [dst]);
-        // let plugin = Reflect.construct(this.constructor, [dst]);
-        //不拷贝属性
-        // let excludeProps: string[] = ['key', 'element', 'modelId', 'moduleId'];
-        // Util.getOwnProps(this).forEach((prop) => {
-        //     if (excludeProps.includes(prop)) {
-        //         return;
-        //     }
-        //     plugin[prop] = Util.clone(this[prop]);
-        // });
-        // if (dst) {
-        //     plugin.element = dst;
-        // }
-        // return plugin;
+        // return Reflect.construct(this.constructor, [dst]);
+        let plugin = Reflect.construct(this.constructor, []);
+        // // 不拷贝属性
+        let excludeProps: string[] = ['key', 'element', 'modelId', 'moduleId'];
+        Util.getOwnProps(this).forEach((prop) => {
+            if (excludeProps.includes(prop)) {
+                return;
+            }
+            plugin[prop] = Util.clone(this[prop]);
+        });
+        if (dst) {
+            plugin.element = dst;
+        }
+        return plugin;
     }
 
     /**

@@ -13,6 +13,7 @@ import { Renderer } from "./renderer";
 import { ResourceManager } from "./resourcemanager";
 import { ChangedDom, IModuleCfg, IResourceObj, RegisterOps } from "./types";
 import { Util } from "./util";
+import { store } from "./nodom";
 
 /**
  * 模块类
@@ -127,6 +128,16 @@ export class Module {
      */
     private moduleMap: Map<string, number> = new Map();
 
+    /**
+     * 状态管理对象
+     */
+    private store: object;
+
+    /**
+     * 父模块通过标签 表达式/字符串 传值
+     */
+    props: object;
+
 
     /**
      * 构造器
@@ -173,6 +184,10 @@ export class Module {
             this.template = this.template.replace(/&(lt|gt|nbsp|amp|quot);/ig, function (all, t) { return transferWords[t]; });
             this.container.innerHTML = '';
         }
+        if (store) {
+            this.store = store;
+        }
+
     }
 
     /**
@@ -224,7 +239,13 @@ export class Module {
             let registers: Array<RegisterOps> = Reflect.apply(this.methodFactory.get('registerModule'), null, []);
             if (Array.isArray(registers) && registers.length > 0) {
                 registers.forEach(v => {
-                    DefineElementManager.add(v.name.toUpperCase(), {
+                    const tagName = v.name.toUpperCase();
+                    
+                    //重复注册
+                    if (DefineElementManager.get(tagName) !== undefined) {
+                        throw new Error(`The module name ${tagName}has been registered, please change the name `);
+                    }
+                    DefineElementManager.add(tagName, {
                         init: function (element: Element, parent?: Element) {
                             element.tagName = 'div';
                             element.setProp('modulename', v.name);
@@ -344,7 +365,7 @@ export class Module {
                 root.compare(oldTree, this.renderDoms, deleteMap);
                 //刪除和替換
                 deleteMap.forEach((value, key) => {
-                    let dp:HTMLElement = this.getNode(key);
+                    let dp: HTMLElement = this.getNode(key);
                     for (let i = value.length - 1; i >= 0; i--) {
                         let index = value[i];
                         if (typeof index == 'string') {
@@ -361,8 +382,8 @@ export class Module {
                                 return el;
                             })(), dp.childNodes[index++]);
                         }
-                            dp.removeChild(dp.childNodes[index]);
-                    } 
+                        dp.removeChild(dp.childNodes[index]);
+                    }
                 });
                 deleteMap.clear();
 
@@ -372,7 +393,7 @@ export class Module {
                 });
             }
             //执行每次渲染后事件
-            this.doModuleEvent('onRender'); 
+            this.doModuleEvent('onRender');
         }
         //数组还原
         this.renderDoms = [];

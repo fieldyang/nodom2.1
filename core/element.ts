@@ -410,7 +410,6 @@ export class Element {
             }
             dst.directives.push(d);
         }
-
         //孩子节点
         for (let c of this.children) {
             dst.add(c.clone(changeKey));
@@ -1172,13 +1171,6 @@ export class Element {
                 m.apply(this.model, [this, module]);
             }
         }
-
-        // if (this.defineEl) {
-        //     // 如果是自定义元素或者插件，则执行插件的beforerender方法
-        //     this.defineEl.beforeRender(module, this);
-        // } else {
-
-        // }
     }
 
 }

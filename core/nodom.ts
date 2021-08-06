@@ -9,11 +9,17 @@ import { Route } from "./router";
 import { Scheduler } from "./scheduler";
 import { IAppCfg, IMdlClassObj, IRouteCfg } from "./types";
 import { Util } from "./util";
+import kayaks from "kayaks";
+
+/**
+ * 新建store方法
+ */
+export const newStore=kayaks;
 /**
  * nodom提示消息
  */
 export var NodomMessage;
-
+export let store:Object|undefined ;
 /**
  * 新建一个App
  * @param config 应用配置
@@ -39,7 +45,7 @@ export async function app(config?: IAppCfg): Promise<Module> {
     if (config.modules) {
         await ModuleFactory.addModules(config.modules);
     }
-
+    
     //消息队列消息处理任务
     Scheduler.addTask(MessageQueue.handleQueue, MessageQueue);
     //渲染器启动渲染
@@ -47,6 +53,10 @@ export async function app(config?: IAppCfg): Promise<Module> {
     //启动调度器
     Scheduler.start(config.scheduleCircle);
 
+    //加载状态管理实例对象
+    if(Util.isObject(config.store)){
+        store=config.store;
+    }
     //存在类名
     let module: Module;
     if (config.module.class) {
@@ -216,4 +226,5 @@ export async function request(config): Promise<any> {
         }
     });
 }
+
 

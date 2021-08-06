@@ -7,8 +7,9 @@ class ModuleA extends nodom.Module {
             template: `
                 <slot name='title'></slot>
                 <slot name='btn1'>
-                <button e-click='sendMsg'> 发送</button></slot>
-                <button e-click='addData'>添加</button>
+                <button e-click='sendMsg'>发送</button>
+                </slot>
+             
                 <slot name='picture'> picture</slot>  
                 <ul>
                     <li x-repeat='foods' class='item'>{{name}}</li>
@@ -29,21 +30,48 @@ class ModuleA extends nodom.Module {
                 },
                 onFirstRender:function(module){
                    
-                    // if(module.renderTree.props.peak){
-                    //     const {peak} =module.renderTree.props; 
-                    //     peak(1);
-                    // }
+                  
                  
+                },
+                addStore:function(dom,module){
+                    const {
+                        store
+                    } = module;
+
+                    store.dispatch({
+                        type: 'add'
+                    });
+
+
+                },
+                delStore:function(dom,module){
+                    const {
+                        store
+                    } = module;
+
+                    store.dispatch({
+                        type: 'del'
+                    });
+                },
+                subscribe:function(){
+                    console.log('订阅了消息');
+                    nodom.MessageManager.subscribe('add',(type,data)=>{
+                        this['add']=data;
+                    });
                 },
                 add(){
                     console.log('add',this);
-                }
+                },
+                onBeforeFirstRender:function(){
+                   
+                 },
             },
             data:{
                 foods:[
                     {name:'duck'},
                     {name:'fish'}
-                ]
+                ],
+                add:0
             }
         });
         super(config);
