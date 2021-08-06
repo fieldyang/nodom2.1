@@ -7,6 +7,6 @@ tsconfig.json
 .tscache/
 ./package-lock.json
 node_modules/
-dist/
+# /dist
 笔记
 /css
