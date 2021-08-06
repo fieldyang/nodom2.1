@@ -29,6 +29,13 @@
 				display: flex;
 				flex-direction: row;
 			}
+
+			.nd-animation-focuse-enter {
+				transition: width 2s cubic-bezier(0.075, 0.82, 0.165, 1);
+			}
+			.nd-animation-focuse-enter:hover {
+				width: 200px;
+			}
 		</style>
 	</head>
 
@@ -52,6 +59,9 @@
 				el: "div",
 				data: {
 					show: false,
+					animation1: {
+						name: "focuse",
+					},
 					animation: {
 						name: {
 							enter: "fade",

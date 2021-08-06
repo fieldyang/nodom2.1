@@ -264,25 +264,25 @@ export default (function () {
             let data = model[directive.value];
             // 渲染时，去掉model指令，避免被递归节点使用
             dom.removeDirectives('model');
-            
+
             //处理内部递归节点
             if (data) {
-                if(Array.isArray(data)){ //为数组，则遍历生成多个节点
+                if (Array.isArray(data)) { //为数组，则遍历生成多个节点
                     // 先克隆一个用作基本节点，避免在循环中为基本节点增加子节点
-                    let node:Element = dom.clone(true);
-                    for(let d of data){
-                        let nod:Element = node.clone(true);
+                    let node: Element = dom.clone(true);
+                    for (let d of data) {
+                        let nod: Element = node.clone(true);
                         nod.model = d;
                         //作为当前节点子节点
                         dom.add(nod);
                     }
-                }else{
-                    let node:Element = dom.clone(true);
+                } else {
+                    let node: Element = dom.clone(true);
                     node.model = data;
                     //作为当前节点子节点
                     dom.add(node);
                 }
-            } 
+            }
         }
     );
 
@@ -506,7 +506,8 @@ export default (function () {
             if (arr[1]) {
                 arr[1] = new Expression(arr[1].trim());
             } else {
-                arr[1] = true; // 如果没有传入渲染标志，则说明只需要在元素渲染的时候启用动画。直接吧渲染标志设置成true
+                // 如果没有传入渲染标志，则说明只需要在元素渲染的时候启用动画。直接吧渲染标志设置成true
+                arr[1] = true;
             }
             directive.value = arr;
         },
@@ -642,9 +643,12 @@ export default (function () {
                     } else {
                         // 当前处于显示状态 
                         // 为了不重复播放显示动画，这里直接返回
+                        dom.addClass('nd-animation-' + nameEnter + '-enter');
                         return;
                     }
                 } else {
+                    dom.addClass('nd-animation-' + nameEnter + '-enter');
+                    dom.dontRender = false;
                 }
             }
         }
@@ -777,8 +781,8 @@ export default (function () {
                 dataValue += '';
             }
             //无法获取虚拟dom的value，只能从对应的element获取
-            let el:any = module.getNode(dom.key);
-            let value = el?el.value:undefined;
+            let el: any = module.getNode(dom.key);
+            let value = el ? el.value : undefined;
 
             if (type === 'radio') {
                 if (dataValue + '' === value) {
