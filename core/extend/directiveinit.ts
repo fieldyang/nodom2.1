@@ -70,8 +70,8 @@ export default (function () {
                     module.addChild(m.id);
                     //传props值
                     m.props = Util.clone(dom.props);
-                    
-                   
+
+
                     //插槽
                     if (dom.children.length > 0) {
                         let slotMap: Map<string, Element> = new Map();
@@ -87,9 +87,9 @@ export default (function () {
                             oldMap.forEach(obj => {
                                 const { index, slotName, pd } = obj;
 
-                                    if (slotMap.has(slotName)) {
-                                        pd.children.splice(index, 1, slotMap.get(slotName));
-                                    }
+                                if (slotMap.has(slotName)) {
+                                    pd.children.splice(index, 1, slotMap.get(slotName));
+                                }
                             })
                         }
                     }
@@ -506,8 +506,11 @@ export default (function () {
         9,
         (directive: Directive, dom: Element) => {
             let arr = directive.value.trim().split('|');
-            if (arr[0].trim().startsWith('{')) {
-                arr[0] = new Function(`return  ${arr[0]}`)();
+            let privateName = ['fade', 'scale-fixtop', 'scale-fixleft', 'scale-fixbottom', 'scale-fixright', 'scale-fixcenterX', 'scale-fixcenterY']
+            if (privateName.includes(arr[0].trim())) {
+                arr[0] = arr[0].trim();
+            } else {
+                arr[0] = new Expression(arr[0].trim());
             }
             // 渲染标志
             if (arr[1]) {
@@ -520,16 +523,6 @@ export default (function () {
         },
         (directive: Directive, dom: Element, module: Module, parent: Element) => {
             let arr = directive.value;
-            let confObj;
-            if (!Util.isObject(arr[0])) {
-                confObj = dom.model.$query(arr[0]);
-            } else {
-                confObj = arr[0];
-            }
-            if (!Util.isObject(confObj)) {
-                return new NError('animation配置必须是一个对象')
-            }
-
             let clsArr: Array<string> = [];
             let cls: string = dom.getProp('class');
             let model = dom.model;
@@ -537,6 +530,18 @@ export default (function () {
                 clsArr = cls.trim().split(/\s+/);
             }
 
+            let confObj = arr[0];
+            if (arr[0] instanceof Expression) {
+                confObj = confObj.val(model, dom);
+            } else {
+                confObj = {
+                    name: confObj
+                }
+            }
+
+            if (!Util.isObject(confObj)) {
+                return new NError('未找到animation配置对象');
+            }
             let renderFlag = arr[1];
             let nameEnter = confObj.name?.enter || confObj.name;
             let nameLeave = confObj.name?.leave || confObj.name;

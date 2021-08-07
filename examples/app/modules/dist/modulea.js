@@ -9,7 +9,6 @@ class ModuleA extends nodom.Module {
                 <slot name='btn1'>
                 <button e-click='sendMsg'>发送</button>
                 </slot>
-             
                 <slot name='picture'> picture</slot>  
                 <ul>
                     <li x-repeat='foods' class='item'>{{name}}</li>
