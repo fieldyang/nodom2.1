@@ -13,8 +13,9 @@ var NodomConfig = {
     /**模块配置 */
     modules:[
         {class:'ModuleA',path:'modulea',singleton:false,lazy:true,className:'md-a'},
-        {class:'ModuleB',path:'moduleb',singleton:false,lazy:true,className:'send-message'},
-        {class:'ModuleC',path:'modulec',singleton:false,lazy:true}
+        {class:'ModuleB',path:'moduleb',singleton:false,lazy:true,className:'Send'},
+        {class:'ModuleC',path:'modulec',singleton:false,lazy:true},
+        {class:'Store',path:'store',singleton:false,lazy:true,className:'Store'}
     ],
     /**路由配置 */
     routes:[

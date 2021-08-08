@@ -11,6 +11,7 @@ class ModuleB extends nodom.Module {
                 msg1: ''
             },
             methods: {
+           
                 sendMsg: function (dom, model, module) {
                     module.broadcast(model.data.msg);
                 },
@@ -25,6 +26,11 @@ class ModuleB extends nodom.Module {
             }
         });
         super(config);
+    }
+    update=(data)=>{
+        console.log(data);
+        console.log(this);
+        this.model['msg1']=data
     }
 }
 //# sourceMappingURL=moduleb.js.map

@@ -31,7 +31,7 @@ export class ResourceManager{
      */
     public static async getResources(reqs:any[]):Promise<IResourceObj[]>{
         let me = this;
-        this.preHandle(reqs);
+        this.preHandle(reqs); 
         //无请求
         if(reqs.length === 0){
             return [];

@@ -26,17 +26,16 @@ export class Model {
 
         let proxy = new Proxy(data, {
             set: (src: any, key: string, value: any, receiver: any) => {
+                
                 //值未变,proxy 不处理
                 if (src[key] === value) {
                     return true;
                 }
                 //不处理原型属性 
                 let excludes = ['__proto__', 'constructor'];
-
                 if (excludes.includes(<string>key)) {
                     return true;
                 }
-
                 const excArr = ['$watch', "$moduleId", "$query", "$key", "$index"];
                 //不进行赋值
                 if (typeof value !== 'object' || (value === null || !value.$watch)) {
@@ -48,15 +47,10 @@ export class Model {
                 return Reflect.set(src, key, value, receiver);
             },
             get: (src: any, key: string | symbol, receiver) => {
-                // vue 的做法是变异 push 等方法避免追踪length 
-                // 但是我测试之后发现他还是会去追踪length
-                // if (Array.isArray(src) && arrayFunc.hasOwnProperty(key)) {
-                //     return Reflect.get(arrayFunc, key, receiver)
-                // }
                 let res = Reflect.get(src, key, receiver);
-                let data = module.modelManager.getFromDataMap(src[key])
+                let data = module.modelManager.getFromDataMap(src[key]);
                 if (data) {
-                    return data
+                    return data;
                 }
                 if (typeof res === 'object' && res !== null) {
                     //如果是的对象，则返回代理，便于后续激活get set方法                   

@@ -18,7 +18,6 @@ export class ModelManager {
      * 每个数据对象，可有多个监听器
      */
     private modelMap: WeakMap<Model, any> = new WeakMap();
-
     constructor(module: Module) {
         this.module = module;
     }
@@ -32,14 +31,14 @@ export class ModelManager {
         this.dataMap.set(data, model);
     }
 
-       /**
-     * 删除从 dataNModelMap
-     * @param data      数据对象
-     * @param model     模型
-     */
-        public delToDataMap(data: Object) {
-            this.dataMap.delete(data);
-        }
+    /**
+  * 删除从 dataNModelMap
+  * @param data      数据对象
+  * @param model     模型
+  */
+    public delToDataMap(data: Object) {
+        this.dataMap.delete(data);
+    }
 
     /**
      * 从dataNModelMap获取model
@@ -72,15 +71,15 @@ export class ModelManager {
             this.modelMap.get(model).model = srcNModel;
         }
     }
-      /**
-     * 删除源模型到到模型map
-     * @param model     模型代理
-     * @param srcNModel  源模型
-     */
-       public delModelToModelMap(model: any) {
-     
-            this.modelMap.delete(model)
-        
+    /**
+   * 删除源模型到到模型map
+   * @param model     模型代理
+   * @param srcNModel  源模型
+   */
+    public delModelToModelMap(model: any) {
+
+        this.modelMap.delete(model)
+
     }
     /**
      * 从模型Map获取源模型
