@@ -545,7 +545,7 @@ export default (function () {
             let renderFlag = arr[1];
             let nameEnter = confObj.name?.enter || confObj.name;
             let nameLeave = confObj.name?.leave || confObj.name;
-            let hiddenMode = confObj.hiddenMode || 'visibility';
+            let hiddenMode = confObj.hiddenMode || 'display';
             let durationEnter = confObj.duration?.enter || '0.3s';
             let durationLeave = confObj.duration?.leave || '0.3s';
             let delayEnter = confObj.delay?.enter || '0s'; // 如果不配置则默认不延迟
@@ -675,7 +675,6 @@ export default (function () {
         (directive: Directive, dom: Element) => {
             if (typeof directive.value === 'string') {
                 //转换为json数据
-                // let obj = eval('(' + directive.value + ')');
                 let obj = new Function('return ' + directive.value)();
                 if (!Util.isObject(obj)) {
                     return;
