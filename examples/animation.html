@@ -13,13 +13,14 @@
 				width: 100px;
 				height: 100px;
 				margin: 20px;
+				display: block;
 			}
-
 			.div2 {
 				background-color: #f0a45d;
 				width: 100px;
 				height: 100px;
 				margin: 20px;
+				display: block;
 			}
 
 			.container {
@@ -41,8 +42,8 @@
 
 	<body>
 		<div>
-			<button e-click="show">show</button>
-			<button e-click="show2">show2</button>
+			<button x-show="show < 3">show</button>
+			<!-- <button e-click="show2">show2</button>
 			<div class="container">
 				<div class="div1" x-animation="fade|show">
 					<label>动画1</label>
@@ -50,7 +51,7 @@
 				<div class="div2" x-animation="animation|show2">
 					<label>动画2</label>
 				</div>
-			</div>
+			</div> -->
 		</div>
 	</body>
 	<script>
@@ -58,7 +59,7 @@
 			module: {
 				el: "div",
 				data: {
-					show: false,
+					show: 1,
 					animation1: {
 						name: "focuse",
 					},
@@ -79,7 +80,8 @@
 				},
 				methods: {
 					show(dom, module) {
-						this.show = !this.show;
+						this.show++;
+						// this.show = !this.show;
 					},
 					show2(dom, module) {
 						this.show2 = !this.show2;
