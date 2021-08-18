@@ -1221,7 +1221,6 @@ var nodom = (function (exports) {
                     if (Array.isArray(registers) && registers.length > 0) {
                         registers.forEach(v => {
                             const tagName = v.name.toUpperCase();
-                            console.log(DefineElementManager.get(tagName));
                             //重复注册
                             if (DefineElementManager.get(tagName) !== undefined) {
                                 throw new Error(`The module name ${tagName}has been registered, please change the name `);
@@ -2438,18 +2437,20 @@ var nodom = (function (exports) {
 
     class Watcher {
         static update(key, fn) {
-            if (this.isExec) {
-                return;
-            }
-            this.isExec = true;
-            let extra = [];
-            if (key !== undefined) {
-                extra = Watcher.keyMap.get(key) || [];
-            }
-            let watchers = [...Watcher.watchers, ...extra];
-            fn();
-            watchers === null || watchers === void 0 ? void 0 : watchers.forEach(fn => fn());
-            this.isExec = false;
+            return __awaiter(this, void 0, void 0, function* () {
+                if (this.isExec) {
+                    return;
+                }
+                this.isExec = true;
+                let extra = [];
+                if (key !== undefined) {
+                    extra = Watcher.keyMap.get(key) || [];
+                }
+                let watchers = [...Watcher.watchers, ...extra];
+                yield fn();
+                watchers === null || watchers === void 0 ? void 0 : watchers.forEach(fn => fn());
+                this.isExec = false;
+            });
         }
         static remove(fn, key) {
             let watchers = this.watchSelect(key);

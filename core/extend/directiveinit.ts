@@ -13,6 +13,7 @@ import { Renderer } from "../renderer";
 import { Router } from "../router";
 import { Util } from "../util";
 
+
 export default (function () {
 
     /**
@@ -70,7 +71,7 @@ export default (function () {
                     module.addChild(m.id);
                     //传props值
                     m.props = Util.clone(dom.props);
-                    
+                    // handlesData(m,dom)
                    
                     //插槽
                     if (dom.children.length > 0) {
@@ -99,6 +100,7 @@ export default (function () {
             } else if (subMdl && subMdl.state !== 3) {
                 await subMdl.active();
             }
+            //插槽
             function findSlot(dom: Element, res = new Array()) {
                 if (dom.hasTmpParam('slotName')) {
                     res.push({

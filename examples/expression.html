@@ -22,8 +22,8 @@
         <div>描述：{{30 +$addStr('hello' + desc) + 20}}</div>
         <div> 随机折扣:{{(Math.random()*price)|number:1}}</div>
         <div>当前日期是:{{date1|date:'yyyy/MM/dd'}}</div>
-        <div>{{date1|date:'yyyy-MM-dd HH:mm:ss'}}</div>
-        <div>当前时间是:{{date1|date:'HH:mm:ss'}}</div>
+        <!-- <div>{{date1|date:'yyyy-MM-dd HH:mm:ss'}}</div> -->
+        <div>当前时间是:{{date1|date:'yyyy-MM-dd HH:mm:ss'}}</div>
         <div x-if='Object.keys(goods).length>0'>判断商品列表是否存在</div>
         <div>路径：{{'/'+'path'+'/'+url}}</div>
         排序过滤器：
@@ -47,6 +47,8 @@
         <div>支持从数据中直接调用函数：{{sum($num,0)}}</div>
         <div>三目运算：{{num>0?1:0}}</div> 
         {{desc}}
+        
+        <div>模块传值：</div>
         {{this.state}}
     </div>
 </body>

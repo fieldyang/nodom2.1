@@ -1,6 +1,6 @@
 import { Util } from "./util";
 
-export  class MessageManager {
+export class MessageManager {
     /**
      * all topic  subscribers
      */
@@ -46,13 +46,14 @@ export  class MessageManager {
             subscribers.get(type) === undefined ?
                 [] :
                 subscribers.get(type);
+                
         if (fnArrays.length > 0) {
+
             fnArrays.forEach((fn) => {
                 try {
                     fn(type, data);
                 } catch (e) {
                     throw new Error(`Function:${fn} execution error`);
-
                 }
             }
             )
