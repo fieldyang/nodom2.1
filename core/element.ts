@@ -157,6 +157,11 @@ export class Element {
         if (!this.model) {
             this.model = module.model;
         }
+        //先执行model指令
+        if(this.hasDirective('model')){
+            let d = this.getDirective('model');
+            d.exec(module, this, this.parent);
+        }
         //前置方法集合执行
         this.doRenderOp(module, 'before');
 
@@ -214,7 +219,6 @@ export class Element {
         let type = params.type;
         let parent = params.parent;
         //重置dontRender
-        // this.dontRender = false;
         //构建el
         if (type === 'fresh' || type === 'add' || type === 'text') {
             if (parent) {
@@ -429,6 +433,10 @@ export class Element {
      */
     public handleDirectives(module: Module) {
         for (let d of this.directives.values()) {
+            //model指令已经执行，不再执行
+            if(d.type.name === 'model'){
+                continue;
+            }
             d.exec(module, this, this.parent);
             //指令可能改变render标志
             if (this.dontRender) {
