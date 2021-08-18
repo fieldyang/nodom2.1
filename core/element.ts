@@ -24,6 +24,11 @@ export class Element {
     public model: Model;
 
     /**
+     * 数据映射数组
+     * [变量别名，变量名（原模块.模块内部数据），双向绑定标志（默认false）]
+     */
+    public datas: object;
+    /**
      * element为textnode时有效
      */
     public textContent: string | HTMLElement;
@@ -1173,4 +1178,34 @@ export class Element {
         }
     }
 
+    /**
+     * 获取datas
+     * @returns datas
+     */
+    getDatas() {
+        return this.datas;
+    }
+
+    /**
+     * 添加datas
+     * @param key 属性名
+     * @param data [原对象.数据名,bindingFlag]
+     * @returns 
+     */
+    addDatas(key: string, data: Array<any>) {
+        if (!this.datas) {
+            this.datas = new Object();
+        }
+        this.datas[key] = data;
+    }
+
+    /**
+     * 删除datas
+     * @param key 待删除的key
+     * @returns 
+     */
+    removeDatas(key: string) {
+        if (!this.datas) return;
+        delete this.datas[key];
+    }
 }

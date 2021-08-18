@@ -1,6 +1,7 @@
 import { DefineElementManager } from "./defineelementmanager";
 import { Directive } from "./directive";
 import { Element } from "./element";
+import { NError } from "./error";
 import { NEvent } from "./event";
 import { Expression } from "./expression";
 import { ASTObj, selfClosingTag } from "./types";
@@ -104,6 +105,21 @@ export class Compiler {
                 // 事件
                 let e = attr.propName.substr(2);
                 oe.addEvent(new NEvent(e, attr.value.trim()));
+            } else if (attr.propName.startsWith("d-")) {
+                // 数据
+                let tempArr = attr.propName.split(':');
+                let bindFlag = 'false';
+                if (tempArr.length == 2) {
+                    bindFlag = tempArr[1] == 'true' ? 'true' : 'false';
+                }
+                let name = tempArr[0].split('-')[1];
+                if (/\{\{.+?\}\}/.test(attr.value) === false) {
+                    throw new NError('数据必须是由双大括号包裹');
+                }
+                let value = attr.value.substring(2, attr.value.length - 2);
+                // 变量别名，变量名（原对象.变量名)，双向绑定标志
+                let data = [value, bindFlag];
+                oe.addDatas(name, data);
             } else {
                 // 普通属性 如class 等
                 let isExpr: boolean = false;
@@ -370,7 +386,6 @@ export class Compiler {
         if (/\{\{.+?\}\}/.test(exprStr) === false) {
             return exprStr;
         }
-        // \}?\s*
         let reg: RegExp = /\{\{.+?\}?\s*\}\}/g;
         let retA = new Array();
         let re: RegExpExecArray;

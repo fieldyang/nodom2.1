@@ -10,7 +10,7 @@
 
 	<body>
 		<div>
-			<ui-text value="{{data}}"></ui-text>
+			<div d-data:true="{{{data}}}" d-data2:false={{pm.pm1}}></div>
 		</div>
 	</body>
 	<script>
@@ -22,69 +22,8 @@
 				data: {
 					data: 123,
 				},
-				methods: {
-					onBeforeFirstRender: function () {},
-					change: function (dom, module, e, el) {
-						// console.log(dom,module,e,el);
-						this.rows.push({
-							name: "zhang",
-							addr: "mianyang",
-						});
-						this.show = false;
-						this.name = "gg";
-						this.red = false;
-						delete this.$time;
-						this.sum = function (a, b) {
-							return a;
-						};
-						this.flag = false;
-					},
-					cac: function (a, b) {
-						return a + b;
-					},
-				},
-				data: {
-					path: "name",
-					star: 1,
-					star1: 2,
-					show: true,
-					name: "kyle",
-					red: true,
-					text: "",
-					flag: true,
-					$time: {
-						a: 1,
-					},
-					sum: function (a, b) {
-						return a + b;
-					},
-					rows: [
-						{
-							name: "yang",
-							addr: "chengdu",
-							pre: "./examples/data/img/logo.png",
-							src: "./examples/data/img/1.jpg",
-						},
-						{
-							name: "zhang",
-							addr: "mianyang",
-							pre: "./examples/data/img/logo.png",
-							src: "./examples/data/img/1.jpg",
-						},
-						{
-							name: "chen",
-							addr: "luoyang",
-							pre: "./examples/data/img/logo.png",
-							src: "./examples/data/img/1.jpg",
-						},
-						{
-							name: "tang",
-							addr: "beijing",
-							pre: "./examples/data/img/logo.png",
-							src: "./examples/data/img/1.jpg",
-						},
-					],
-				},
+				methods: {},
+				data: {},
 			},
 		});
 	</script>

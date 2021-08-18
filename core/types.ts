@@ -1,5 +1,3 @@
-import { ClassDeclaration, ClassElement, ClassExpression } from "../node_modules/typescript/lib/typescript";
-import { DefineElement } from "./defineelement";
 import { Element } from "./element";
 import { Module } from "./module";
 import { Route } from "./router";
@@ -110,7 +108,7 @@ export interface IAppCfg {
     /**
      * 状态管理对象，实例化后引入
      */
-    store:Object;
+    store: Object;
 }
 
 
@@ -227,7 +225,7 @@ export interface IModuleCfg {
     /**
      * 实例化后的状态管理对象，配置后，所有模块可见
      */
-    store?:object
+    store?: object
 }
 
 /**
@@ -362,7 +360,6 @@ export interface ASTObj extends Object {
      */
     textContent?: string;
 }
-
 
 export const selfClosingTag = [
     "area",
