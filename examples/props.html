@@ -18,13 +18,12 @@
 
 <body>
     <div id="app">
-
-
         <Props title='prop' num={{type}}>
             <div x-slot='props'>
                 <button e-click='showProps' class="red"> 点击我，控制台查看打印传入的数据</button>
             </div>
         </Props>
+        
         <hr>
         <div x-module='Store' title={{name}} num={{num}}>
             <div x-slot='props'>

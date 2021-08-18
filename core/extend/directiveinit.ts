@@ -88,9 +88,9 @@ export default (function () {
                             oldMap.forEach(obj => {
                                 const { index, slotName, pd } = obj;
 
-                                    if (slotMap.has(slotName)) {
-                                        pd.children.splice(index, 1, slotMap.get(slotName));
-                                    }
+                                if (slotMap.has(slotName)) {
+                                    pd.children.splice(index, 1, slotMap.get(slotName));
+                                }
                             })
                         }
                     }
@@ -508,29 +508,23 @@ export default (function () {
         9,
         (directive: Directive, dom: Element) => {
             let arr = directive.value.trim().split('|');
-            if (arr[0].trim().startsWith('{')) {
-                arr[0] = new Function(`return  ${arr[0]}`)();
+            let privateName = ['fade', 'scale-fixtop', 'scale-fixleft', 'scale-fixbottom', 'scale-fixright', 'scale-fixcenterX', 'scale-fixcenterY']
+            if (privateName.includes(arr[0].trim())) {
+                arr[0] = arr[0].trim();
+            } else {
+                arr[0] = new Expression(arr[0].trim());
             }
             // 渲染标志
             if (arr[1]) {
                 arr[1] = new Expression(arr[1].trim());
             } else {
-                arr[1] = true; // 如果没有传入渲染标志，则说明只需要在元素渲染的时候启用动画。直接吧渲染标志设置成true
+                // 如果没有传入渲染标志，则说明只需要在元素渲染的时候启用动画。直接吧渲染标志设置成true
+                arr[1] = true;
             }
             directive.value = arr;
         },
         (directive: Directive, dom: Element, module: Module, parent: Element) => {
             let arr = directive.value;
-            let confObj;
-            if (!Util.isObject(arr[0])) {
-                confObj = dom.model.$query(arr[0]);
-            } else {
-                confObj = arr[0];
-            }
-            if (!Util.isObject(confObj)) {
-                return new NError('animation配置必须是一个对象')
-            }
-
             let clsArr: Array<string> = [];
             let cls: string = dom.getProp('class');
             let model = dom.model;
@@ -538,10 +532,22 @@ export default (function () {
                 clsArr = cls.trim().split(/\s+/);
             }
 
+            let confObj = arr[0];
+            if (arr[0] instanceof Expression) {
+                confObj = confObj.val(model, dom);
+            } else {
+                confObj = {
+                    name: confObj
+                }
+            }
+
+            if (!Util.isObject(confObj)) {
+                return new NError('未找到animation配置对象');
+            }
             let renderFlag = arr[1];
             let nameEnter = confObj.name?.enter || confObj.name;
             let nameLeave = confObj.name?.leave || confObj.name;
-            let hiddenMode = confObj.hiddenMode || 'visibility';
+            let hiddenMode = confObj.hiddenMode || 'display';
             let durationEnter = confObj.duration?.enter || '0.3s';
             let durationLeave = confObj.duration?.leave || '0.3s';
             let delayEnter = confObj.delay?.enter || '0s'; // 如果不配置则默认不延迟
@@ -651,9 +657,12 @@ export default (function () {
                     } else {
                         // 当前处于显示状态 
                         // 为了不重复播放显示动画，这里直接返回
+                        dom.addClass('nd-animation-' + nameEnter + '-enter');
                         return;
                     }
                 } else {
+                    dom.addClass('nd-animation-' + nameEnter + '-enter');
+                    dom.dontRender = false;
                 }
             }
         }
@@ -668,7 +677,6 @@ export default (function () {
         (directive: Directive, dom: Element) => {
             if (typeof directive.value === 'string') {
                 //转换为json数据
-                // let obj = eval('(' + directive.value + ')');
                 let obj = new Function('return ' + directive.value)();
                 if (!Util.isObject(obj)) {
                     return;

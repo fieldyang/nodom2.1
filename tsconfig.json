@@ -14,10 +14,10 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "outDir":"./dist",
-    "declaration": true,
-    "declarationDir":"./dist/types"
+    // "declaration": true,
+    // "declarationDir":"./dist/types"
   },
-  "include":["**/*.ts", "index.ts", "test.ts", "core/123123123.js"],
+  "include":["**/*.ts", "index.ts", "test.ts"],
   "exclude": [
     "./examples"
   ]
