@@ -1372,8 +1372,22 @@ var nodom = (function (exports) {
                 //执行每次渲染后事件
                 this.doModuleEvent('onRender');
                 //通知更新数据
-                if (this.subscribes)
-                    this.subscribes.publish('@data' + this.id, null);
+                // if (this.subscribes) {
+                //     this.subscribes.publish('@data' + this.id, null);
+                //     this.subscribes.publish('@dataTry' + this.id, null);
+                // }
+                // let md: Module = ModuleFactory.get(this.parentId);
+                // if (md && md.subscribes !== undefined) {
+                //     md.subscribes.publish('@dataTry' + this.parentId, null);
+                // }
+            }
+            if (this.subscribes) {
+                this.subscribes.publish('@data' + this.id, null);
+                this.subscribes.publish('@dataTry' + this.id, null);
+            }
+            let md = ModuleFactory.get(this.parentId);
+            if (md && md.subscribes !== undefined) {
+                md.subscribes.publish('@dataTry' + this.parentId, null);
             }
             //数组还原
             this.renderDoms = [];
@@ -3413,28 +3427,46 @@ var nodom = (function (exports) {
                 const dataNames = Object.getOwnPropertyNames(datas);
                 for (let i = 0; i < dataNames.length; i++) {
                     let prop = dataNames[i];
+                    //localStore
+                    paModule.subscribes = paModule.subscribes || new LocalStore();
                     let subscribes = paModule.subscribes;
                     let data = datas[prop];
-                    setTimeout(() => {
-                        let exp = new Expression(data[0]);
+                    //表达式
+                    let exp = new Expression(data[0]);
+                    //获取依赖对象
+                    let deps = exp.getDependence(dom.model, dom);
+                    //默认值
+                    deps.obj = deps.obj || paModule.model;
+                    //获取的到数据对象
+                    if (deps.obj !== '') {
+                        updated(deps);
+                    }
+                    else {
+                        let unSubScribe = subscribes.subscribe('@dataTry' + id, () => {
+                            let dp = exp.getDependence(dom.model, dom);
+                            if (dp.obj !== '') {
+                                updated(dp);
+                                //取消订阅
+                                unSubScribe();
+                            }
+                        });
+                    }
+                    //找到依赖对象以后进行进一步操作
+                    function updated(Dependence) {
+                        Dependence.obj = Dependence.obj || paModule.model;
+                        const { key, obj, moduleName } = Dependence;
                         let expData = exp.val(dom.model, dom);
-                        //数据类型验证
+                        //预留 数据类型验证
                         if (dataType != undefined && Object.keys(dataType).indexOf(prop) !== -1) {
                             if (dataType[prop].type !== typeof expData && (dataType[prop].type == 'array' && !Array.isArray(expData))) {
                                 return;
                             }
                         }
                         model[prop] = expData;
-                        let deps = exp.getDependence(dom.model, dom);
-                        if (deps.obj === undefined) {
-                            deps.obj = paModule.model;
-                        }
-                        const { key, obj, moduleName } = deps;
-                        console.log(typeof obj, 'objjjjj', deps, exp);
                         //双向绑定
                         if (data[1]) {
                             model.$watch(prop, (oldValue, newValue) => __awaiter(this, void 0, void 0, function* () {
-                                //微任务
+                                //防止栈溢出
                                 obj[key] = yield newValue;
                             }));
                         }
@@ -3465,7 +3497,7 @@ var nodom = (function (exports) {
                                 change = false;
                             }
                         });
-                    }, 0);
+                    }
                 }
             });
         }
@@ -6092,7 +6124,6 @@ var nodom = (function (exports) {
                     // 变量别名，变量名（原对象.变量名)，双向绑定标志
                     let data = [value, bindFlag];
                     oe.addDatas(name, data);
-                    console.log(oe);
                 }
                 else {
                     // 普通属性 如class 等

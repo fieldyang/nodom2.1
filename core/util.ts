@@ -4,6 +4,7 @@ import { Element } from "./element";
 import { Expression } from "./expression";
 import { LocalStore } from "./localstore";
 import { Module } from "./module";
+import { ExpressionMd } from "./types";
 
 /**
  * 基础服务库
@@ -36,12 +37,36 @@ export class Util {
 
         for (let i = 0; i < dataNames.length; i++) {
             let prop: string = dataNames[i];
+            //localStore
+            paModule.subscribes = paModule.subscribes || new LocalStore();
             let subscribes = paModule.subscribes;
             let data = datas[prop];
-            //需求模块可能还未初始化
-            setTimeout(() => {
-                let exp: Expression = new Expression(data[0]);
+            //表达式
+            let exp: Expression = new Expression(data[0]);
+            //获取依赖对象
+            let deps = exp.getDependence(dom.model, dom);
+            //默认值
+            deps.obj = deps.obj || paModule.model;
+
+            //获取的到数据对象
+            if (deps.obj !== '') {
+                updated(deps);
+            } else {
+                let unSubScribe: Function = subscribes.subscribe('@dataTry' + id, () => {
+                    let dp = exp.getDependence(dom.model, dom);
+                    if (dp.obj !== '') {
+                        updated(dp);
+                        //取消订阅
+                        unSubScribe();
+                    }
+                })
+            }
+            //找到依赖对象以后进行进一步操作
+            function updated(Dependence: ExpressionMd) {
+                Dependence.obj = Dependence.obj || paModule.model;
+                const { key, obj, moduleName } = Dependence;
                 let expData = exp.val(dom.model, dom);
+
                 //预留 数据类型验证
                 if (dataType != undefined && Object.keys(dataType).indexOf(prop) !== -1) {
                     if (dataType[prop].type !== typeof expData && (dataType[prop].type == 'array' && !Array.isArray(expData))) {
@@ -50,12 +75,6 @@ export class Util {
                 }
 
                 model[prop] = expData;
-                let deps = exp.getDependence(dom.model, dom);
-                if (deps.obj === undefined) {
-                    deps.obj = paModule.model;
-                }
-                const { key, obj, moduleName } = deps;
-
 
                 //双向绑定
                 if (data[1]) {
@@ -93,8 +112,7 @@ export class Util {
                     }
 
                 });
-            }, 0);
-
+            }
         }
     }
 

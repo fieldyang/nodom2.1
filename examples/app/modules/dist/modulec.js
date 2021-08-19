@@ -17,6 +17,9 @@ class ModuleC extends nodom.Module {
                      this.type++;
                      this.data++;
                      this.name++;
+                     setTimeout(() => {
+                         this.keys='as';
+                     }, 2000);
                    
                 },
                 sendParent: function (dom, module) {

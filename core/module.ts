@@ -138,7 +138,7 @@ export class Module {
      */
     public subscribes: LocalStore;
 
-    public dataType:object;
+    public dataType: object;
     /**
      * 父模块通过标签 表达式/字符串 传值
      */
@@ -400,10 +400,17 @@ export class Module {
             }
             //执行每次渲染后事件
             this.doModuleEvent('onRender');
-            //通知更新数据
-            if(this.subscribes)
-            this.subscribes.publish('@data' + this.id, null);
         }
+        //通知更新数据
+        if (this.subscribes) {
+            this.subscribes.publish('@data' + this.id, null);
+            this.subscribes.publish('@dataTry' + this.id, null);
+        }
+        let md: Module = ModuleFactory.get(this.parentId);
+        if (md && md.subscribes !== undefined) {
+            md.subscribes.publish('@dataTry' + this.parentId, null);
+        }
+
         //数组还原
         this.renderDoms = [];
         return true;
@@ -432,7 +439,7 @@ export class Module {
         delete this.firstRender;
         //执行首次渲染后事件
         this.doModuleEvent('onFirstRender');
-        
+
     }
 
     /**
