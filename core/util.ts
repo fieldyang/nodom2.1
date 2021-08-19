@@ -1,5 +1,9 @@
 import { NError } from "./error";
 import { NodomMessage } from "./nodom";
+import { Element } from "./element";
+import { Expression } from "./expression";
+import { LocalStore } from "./localstore";
+import { Module } from "./module";
 
 /**
  * 基础服务库
@@ -11,6 +15,89 @@ export class Util {
     public static genId() {
         return this.generatedId++;
     }
+
+
+    /**
+     * 
+     * @param paModule 父模块
+     * @param module 当前模块
+     * @param dom 当前dom
+     * @returns void
+     */
+    static async handlesDatas(paModule: Module, module: Module, dom: Element): Promise<void> {
+        const { datas } = dom;
+        const { model } = module;
+        const { dataType, name, id } = paModule;
+        if (datas === undefined || !Util.isObject(datas)) {
+            return;
+        }
+        //datas属性
+        const dataNames = Object.getOwnPropertyNames(datas);
+
+        for (let i = 0; i < dataNames.length; i++) {
+            let prop: string = dataNames[i];
+            let subscribes = paModule.subscribes;
+            let data = datas[prop];
+            //需求模块可能还未初始化
+            setTimeout(() => {
+                let exp: Expression = new Expression(data[0]);
+                let expData = exp.val(dom.model, dom);
+                //预留 数据类型验证
+                if (dataType != undefined && Object.keys(dataType).indexOf(prop) !== -1) {
+                    if (dataType[prop].type !== typeof expData && (dataType[prop].type == 'array' && !Array.isArray(expData))) {
+                        return;
+                    }
+                }
+
+                model[prop] = expData;
+                let deps = exp.getDependence(dom.model, dom);
+                if (deps.obj === undefined) {
+                    deps.obj = paModule.model;
+                }
+                const { key, obj, moduleName } = deps;
+
+
+                //双向绑定
+                if (data[1]) {
+                    model.$watch(prop, async (oldValue, newValue) => {
+                        //防止栈溢出
+                        obj[key] = await newValue;
+                    });
+                }
+                let tid: number;
+                if (name == moduleName) {
+                    tid = id;
+                } else {
+                    //获取模块
+                    let subscribeMd = paModule.getChild(moduleName);
+                    if (subscribeMd !== null) {
+                        tid = subscribeMd.id;
+                        if (subscribeMd.subscribes == undefined) {
+                            subscribes = subscribeMd.subscribes = new LocalStore();
+                        }
+                    }
+                }
+
+                let change = false;
+                //单向绑定基本数据类型
+                obj && obj.$watch(key, async () => {
+                    change = true;
+
+                })
+                //订阅,反作用
+                subscribes.subscribe('@data' + tid, () => {
+                    //基本数据类型可以做到双向绑定，对象为单向数据流
+                    if (Util.isObject(obj[key]) || change) {
+                        model[prop] = obj[key];
+                        change = false;
+                    }
+
+                });
+            }, 0);
+
+        }
+    }
+
     /******对象相关******/
 
     /**
@@ -451,7 +538,7 @@ export class Util {
      * @param value 属性值，获取属性时不需要设置
      * @returns     属性值
      */
-    public static attr(el: Element, param: string | Object, value?: any): any {
+    public static attr(el, param: string | Object, value?: any): any {
         const me = this;
         if (!me.isEl(el)) {
             throw new NError('invoke', 'this.attr', '0', 'Element');

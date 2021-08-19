@@ -17,16 +17,12 @@
 		</style>
 	</head>
 
-		.tip {
-			color: darkorange;
-		}
-	</style>
-</head>
+	
 
 <body>
 	<div>
-		<div x-module='ModuleC|modc1' update={{this.add}}></div>
-		{{sum}}
+		<div x-module='ModuleC|modc1' update={{this.add}} d-type:true="{{users}}"  d-data:true="{{title.add}}" d-name:false={{name}}></div>
+		{{users}}{{name}}
 		<div name='{{sum}}'>1</div>
 		<button e-click="click">click</button>
 		<h3>普通模块,插槽</h3>
@@ -36,7 +32,7 @@
 			<div x-slot="btn1">
 				<button>特殊点击</button>
 			</div>
-
+			</div>
 		<h3>自定义模块类名</h3>
 		<Send moduleName='send' age='10'>
 		</Send>
@@ -71,29 +67,6 @@
 			<p>模块1包含两个子模块</p>
 			<div x-module="ModuleB|modb1"></div> 
 		</div>
-<<<<<<< HEAD
-
-		<h3>模块消息传递</h3>
-		<p>消息只能发送给父模块、兄弟模块和子模块，定向发送消息时，必须为模块设置模块名</p>
-		<p>消息发送有两种方式：</p>
-		<ul>
-			<li>broadcast(广播):父模块、兄弟模块和孩子节点都可以收到该消息</li>
-			<li>send(发给指定模块):指定模块可以收到该消息</li>
-		</ul>
-
-		<p>模块1包含两个子模块</p>
-		<div x-module="ModuleB|modb1"></div> 
-	</div>
-</body>
-<script>
-	nodom.app({
-		module: {
-			el: "div",
-			data: {
-				users: [{
-						name: "Yanglei",
-						data: "data/data1.json",
-=======
 	</body>
 	<script>
 		nodom.app({
@@ -110,27 +83,15 @@
 							data: "data/data2.json",
 						},
 					],
+					users:13,
+					name:2
 				},
 				methods: {
-					click: function (dom, model, module, e, el) {
-						console.log(this, dom, model, module, e, el);
->>>>>>> 9d7a87ee90372150d6006f6e07f42b2d2574c331
-					},
-					registerModule: function () {
-						return [
-							{
-								/**
-								 * name自定义标签名，class,模块类名
-								 * **/
-								name: "title",
-								class: "ModuleA",
-							},
-						];
-					},
-			},
-			methods: {
 				click: function (dom, model, module, e, el) {
-					console.log(this, dom, model, module, e, el);
+					// console.log(this, dom, model, module, e, el);
+					console.log(this);
+					this.users++;
+					this.name++;
 				},
 				registerModule: function () {
 					return [{
@@ -148,6 +109,7 @@
 					}
 				},
 			},
+		
 		},
 		
 	});

@@ -26,7 +26,7 @@ export class Model {
 
         let proxy = new Proxy(data, {
             set: (src: any, key: string, value: any, receiver: any) => {
-                
+
                 //值未变,proxy 不处理
                 if (src[key] === value) {
                     return true;
@@ -117,7 +117,9 @@ export class Model {
      * @returns     属性对应model proxy
      */
     $query(key: string) {
+
         let model: Model = this;
+
         if (key.indexOf('.') !== -1) {    //层级字段
             let arr = key.split('.');
             for (let i = 0; i < arr.length - 1; i++) {
@@ -132,5 +134,7 @@ export class Model {
             key = arr[arr.length - 1];
         }
         return model[key];
+
+
     }
 }

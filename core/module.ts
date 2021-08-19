@@ -14,6 +14,7 @@ import { ResourceManager } from "./resourcemanager";
 import { ChangedDom, IModuleCfg, IResourceObj, RegisterOps } from "./types";
 import { Util } from "./util";
 import { store } from "./nodom";
+import { LocalStore } from "./localstore";
 
 /**
  * 模块类
@@ -132,7 +133,12 @@ export class Module {
      * 状态管理对象
      */
     private store: object;
+    /**
+     * 所有订阅管理对象
+     */
+    public subscribes: LocalStore;
 
+    public dataType:object;
     /**
      * 父模块通过标签 表达式/字符串 传值
      */
@@ -240,7 +246,7 @@ export class Module {
             if (Array.isArray(registers) && registers.length > 0) {
                 registers.forEach(v => {
                     const tagName = v.name.toUpperCase();
-                    
+
                     //重复注册
                     if (DefineElementManager.get(tagName) !== undefined) {
                         throw new Error(`The module name ${tagName}has been registered, please change the name `);
@@ -394,6 +400,9 @@ export class Module {
             }
             //执行每次渲染后事件
             this.doModuleEvent('onRender');
+            //通知更新数据
+            if(this.subscribes)
+            this.subscribes.publish('@data' + this.id, null);
         }
         //数组还原
         this.renderDoms = [];
@@ -423,6 +432,7 @@ export class Module {
         delete this.firstRender;
         //执行首次渲染后事件
         this.doModuleEvent('onFirstRender');
+        
     }
 
     /**

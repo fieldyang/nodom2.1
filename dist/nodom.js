@@ -1371,6 +1371,9 @@ var nodom = (function (exports) {
                 }
                 //执行每次渲染后事件
                 this.doModuleEvent('onRender');
+                //通知更新数据
+                if (this.subscribes)
+                    this.subscribes.publish('@data' + this.id, null);
             }
             //数组还原
             this.renderDoms = [];
@@ -2971,6 +2974,418 @@ var nodom = (function (exports) {
     }
 
     /**
+     * 表达式类
+     */
+    class Expression {
+        /**
+         * @param exprStr	表达式串
+         */
+        constructor(exprStr) {
+            this.fields = []; // 字段数组
+            this.id = Util.genId();
+            let execStr;
+            if (exprStr) {
+                execStr = this.compile(exprStr);
+            }
+            if (execStr) {
+                let v = this.fields.length > 0 ? ',' + this.fields.join(',') : '';
+                this.handlesDep(execStr);
+                execStr = 'function($module' + v + '){return ' + execStr + '}';
+                this.execFunc = (new Function('return ' + execStr))();
+            }
+        }
+        //处理模块依赖
+        handlesDep(execStr) {
+            let index = execStr.lastIndexOf('.');
+            if (index !== -1) {
+                this.dependencies = {
+                    obj: execStr.substring(0, index),
+                    key: execStr.substring(index + 1),
+                    moduleName: execStr.substring(0, execStr.indexOf('.'))
+                };
+                let { key, obj, moduleName } = this.dependencies;
+                let keys = [];
+                //key有关键词
+                if (this.fields.reduce((pre, v) => {
+                    if (key.indexOf(v) !== -1) {
+                        keys.push(v);
+                        return pre + 1;
+                    }
+                }, 0)) {
+                    this.keyFunc = new Function(`return function($module, ${keys.join(',')}  ){return  ${key}  }`)();
+                    this.keyArray = keys;
+                }
+                this.dependencies.obj = obj.replace(moduleName, moduleName + '.model');
+                this.objFunc = new Function(`return function( $module,${this.fields.join(',')}  ){return  ${this.dependencies.obj}  }`)();
+            }
+            else {
+                this.dependencies = {
+                    key: execStr,
+                    obj: '',
+                    moduleName: ''
+                };
+            }
+        }
+        //获取模块相应数据
+        getDependence(model, dom) {
+            if (this.dependencies.moduleName === '') {
+                //赋值模块名
+                this.dependencies.moduleName = ModuleFactory.get(model.$moduleId).name;
+            }
+            const { dependencies } = this;
+            if (this.keyFunc !== undefined) {
+                dependencies['key'] = this.val(model, dom, this.keyFunc, this.keyArray);
+            }
+            dependencies['obj'] = this.objFunc ? this.val(model, dom, this.objFunc, this.fields, true) : undefined;
+            return dependencies;
+        }
+        /**
+         * 克隆
+         */
+        clone() {
+            return this;
+        }
+        /**
+         * 初始化，把表达式串转换成堆栈
+         * @param exprStr 	表达式串
+         */
+        compile(exprStr) {
+            //替代字符串的正则数组
+            let stringReg = [/\\"/g, /\\'/g, /\\`/g, /\".*?\"/g, /'.*?'/g, /`.*?`/g];
+            let replaceMap = new Map();
+            const TMPStr = '##TMP';
+            //替换字符串
+            stringReg.forEach(reg => {
+                if (reg.test(exprStr)) {
+                    exprStr.match(reg).forEach((text) => {
+                        let index = exprStr.indexOf(text);
+                        replaceMap.set(TMPStr + index, text);
+                        exprStr = exprStr.substring(0, index) + (TMPStr + index) + exprStr.substring(index + text.length);
+                    });
+                }
+            });
+            exprStr = exprStr.trim().replace(/([w]\s)|instanceof|\s+/g, (w, index) => {
+                if (index)
+                    return index;
+                else {
+                    if (w === 'instanceof') {
+                        return ' ' + w + ' ';
+                    }
+                    return '';
+                }
+            });
+            //首尾指针
+            let [first, last] = [0, 0];
+            let [braces, fields, funArr, filters] = [[], [], [], []];
+            //括号数组 字段数组 函数数组 存过滤器需要的值
+            let filterString = '';
+            //特殊字符
+            let special = /[\?\:\!\|\*\/\+\-><=&%]/;
+            //返回的串
+            let express = '';
+            //函数名
+            let funName;
+            let isInBrace = false;
+            let isInFun = false;
+            while (last < exprStr.length) {
+                let lastStr = exprStr[last];
+                if (lastStr == '(') {
+                    if (isInFun) {
+                        //函数里存函数名
+                        funName = exprStr.substring(funArr.pop(), last);
+                        express += funName;
+                        first = last;
+                    }
+                    else {
+                        if (!isInBrace) { //不在函数里外面也不在括号里
+                            //取data内函数
+                            let mt = exprStr.substring(first, last).match(/^[\$\w]+/);
+                            if (mt) {
+                                fields.push(mt[0]);
+                            }
+                            express += exprStr.substring(first, last);
+                            first = last;
+                        }
+                    }
+                    braces.push(last++);
+                    isInBrace = true;
+                }
+                else if (lastStr == ')') {
+                    let tmpStr = exprStr.substring(braces.pop(), last);
+                    filters.push(tmpStr);
+                    if (/[\,\!\|\*\/\+\-><=&%]/.test(tmpStr)) { //字段截取需要的字母集
+                        let fieldItem = tmpStr.match(/[\w\$^\.]+/g);
+                        fields = fields.concat(fieldItem);
+                    }
+                    else {
+                        if (tmpStr.substr(1).match(/[\$\w]+/) && tmpStr.substr(1).match(/[\$\w]+/)[0].length == tmpStr.substr(1).length) { //括号里没有特殊符号
+                            fields.push(tmpStr.substr(1));
+                        }
+                        else if (tmpStr.substr(1).startsWith('...')) { //拓展运算符
+                            fields.push(tmpStr.substr(4));
+                        }
+                    }
+                    //外面没有括号
+                    if (braces.length == 0) {
+                        isInBrace = false;
+                        express += tmpStr;
+                    }
+                    //处理函数串
+                    if (isInFun) {
+                        replaceMethod();
+                        isInFun = false;
+                    }
+                    first = last++;
+                }
+                else if (lastStr == '$') {
+                    isInFun = true;
+                    funArr.push(last++);
+                }
+                else if (special.test(lastStr) && !isInBrace) {
+                    express += exprStr.substring(first, last) + lastStr;
+                    //特殊字符处理
+                    fields = fields.concat(exprStr.substring(first, last).match(/[\$\#\w^\.]+/g));
+                    if (lastStr == '=' || lastStr == '|' || lastStr == '&') { //处理重复字符，和表达式
+                        if (lastStr == '|' && exprStr[last + 1] != '|') { //表达式处理
+                            let str = filters[filters.length - 1] ? filters[filters.length - 1] : exprStr.substring(first, last);
+                            if (!filters.length) {
+                                filterString = str;
+                            }
+                            let res = handFilter();
+                            let index = express.indexOf(str);
+                            //')'和'|'
+                            express = express.substring(0, index) + res.str + express.substring(index + str.length + 2);
+                            first = last += res.length + 1;
+                            continue;
+                        }
+                        while (exprStr[last + 1] == lastStr) { //处理重复字符
+                            express += exprStr[++last];
+                        }
+                    }
+                    first = ++last;
+                }
+                else {
+                    last++;
+                }
+            }
+            let endStr = exprStr.substring(first);
+            if (endStr.indexOf(' ') === -1 && !endStr.startsWith('##TMP') && !endStr.startsWith(')')) {
+                let str = endStr.indexOf('.') != -1 ? endStr.substring(0, endStr.indexOf('.')) : endStr;
+                fields.push(str);
+            }
+            express += endStr;
+            function replaceMethod() {
+                express = express.replace(/\$[^(]+?\(/, () => {
+                    return '$module.methodFactory.get("' + funName.substr(1) + '").call($module,';
+                });
+            }
+            /**
+             * @returns {
+             * str:过滤器串
+             * length:编译跳过的长度
+             */
+            function handFilter() {
+                if (/\d+/.test(exprStr[last + 1])) {
+                    return;
+                }
+                last++;
+                let tmpStr = exprStr.substr(last).split(/[\)\(\+\-\*><=&%]/)[0];
+                let args = [];
+                let value = filters.length > 0 ? filters.pop() + ')' : filterString;
+                let num = 0;
+                tmpStr.replace(/\:/g, function (m, i) {
+                    num++;
+                    return m;
+                });
+                if (tmpStr.indexOf(':') != -1) { //有过滤器格式
+                    args = tmpStr.split(/[\:\+\-\*><=&%]/);
+                }
+                if (args.length == 0) { //如果没有过滤器参数
+                    let filterName = tmpStr.match(/^\w+/)[0];
+                    return {
+                        str: 'nodom.FilterManager.exec($module,"' + filterName + '",' + value + ')',
+                        length: filterName.length - 1,
+                    };
+                }
+                let length = args[0].length + args[1].length;
+                if (args[1].startsWith('##TMP')) { //字符串还原
+                    let deleteKey = args[1];
+                    args[1] = replaceMap.get(args[1]);
+                    replaceMap.delete(deleteKey);
+                }
+                let params = '';
+                for (let i = 1; i < num; i++) { //多个过滤器参数
+                    params += /[\'\"\`]/.test(args[i]) ? args[i] : '\'' + args[i] + '\'' + ',';
+                }
+                params = /[\'\"\`]/.test(args[num]) ? args[num] : '\'' + args[num] + '\'';
+                return {
+                    str: 'nodom.FilterManager.exec($module,"' + args[0] + '",' + value + ',' + params + ')',
+                    length,
+                };
+            }
+            if (express.indexOf('instanceof') !== -1) {
+                fields.push(express.split(' ')[0]);
+            }
+            let exclude = ['.', '$module', '##TMP', 'TMP', 'this'];
+            fields = [...(new Set(fields))].filter((v) => {
+                return v != null && exclude.reduce((sum, value) => {
+                    return sum === 0 ? 0 : (!v.startsWith(value) ? 1 : 0);
+                }, 1) === 1 && isNaN(parseInt(v, 10));
+            });
+            if (replaceMap.size) {
+                replaceMap.forEach((value, key) => {
+                    express = express.substring(0, express.indexOf(key)) + value + express.substring(express.indexOf(key) + key.length);
+                });
+            }
+            fields.forEach(field => {
+                this.addField(field);
+            });
+            return express;
+        }
+        /**
+         * 表达式计算
+         * @param model 	模型 或 fieldObj对象
+         * @returns 		计算结果
+         */
+        val(model, dom, func, field, realModule) {
+            let module = ModuleFactory.get(model.$moduleId);
+            if (!model) {
+                model = module.model;
+            }
+            let valueArr = [];
+            let fields = field ? field : this.fields;
+            fields.forEach((field) => {
+                valueArr.push(getFieldValue(module, model, field, realModule));
+            });
+            //module作为第一个参数
+            valueArr.unshift(module);
+            let v;
+            try {
+                let fn = func ? func : this.execFunc;
+                v = fn.apply(module, valueArr);
+            }
+            catch (e) {
+            }
+            return v === undefined || v === null ? '' : v;
+            /**
+             * 获取字段值
+             * @param module    模块
+             * @param dataObj   数据对象
+             * @param field     字段名
+             * @return          字段值
+             */
+            function getFieldValue(module, dataObj, field, realModule) {
+                if (dataObj.hasOwnProperty(field)) {
+                    return dataObj[field];
+                }
+                //兄弟模块
+                const md = module.getChild(field);
+                if (md !== null) {
+                    // this.dependencies = true;
+                    return realModule ? md : md.model;
+                }
+                //从根查找
+                return module.model.$query(field);
+            }
+        }
+        /**
+        * 添加字段到fields
+        * @param field 	字段
+        * @returns         true/false
+        */
+        addField(field) {
+            //js 保留字
+            const jsKeyWords = ['true', 'false', 'undefined', 'null', 'typeof',
+                'Object', 'Function', 'Array', 'Number', 'Date',
+                'instanceof', 'NaN', 'new'];
+            if (field === '' || jsKeyWords.includes(field) || Util.isNumberString(field) || field.startsWith('Math') || field.startsWith('Object')) {
+                return false;
+            }
+            //多级字段只保留第一级，如 x.y只保留x
+            let ind;
+            if ((ind = field.indexOf('.')) !== -1) {
+                if (ind == 0) {
+                    field = field.substr(1);
+                }
+                else {
+                    field = field.substr(0, ind);
+                }
+            }
+            if (!this.fields.includes(field)) {
+                this.fields.push(field);
+            }
+            return true;
+        }
+    }
+
+    class LocalStore {
+        constructor() {
+            /**
+             * all topic  subscribers
+             */
+            this.subscribers = new Map();
+        }
+        /**
+         *
+         * @param type  register a topic
+         * @param fn    create a function to subscribe to topics
+         * @returns     A function to unsubscribe from this topic
+         */
+        subscribe(type, fn) {
+            if (!Util.isFunction(fn)) {
+                throw new Error(`${fn} should be a function`);
+            }
+            const { subscribers } = this;
+            const fnArrays = subscribers.get(type) === undefined ?
+                subscribers.set(type, new Array()).get(type) :
+                subscribers.get(type);
+            fnArrays.push(fn);
+            return () => {
+                const index = fnArrays.indexOf(fn);
+                if (index === -1) {
+                    return;
+                }
+                fnArrays.splice(index, 1);
+            };
+        }
+        /**
+         *
+         * @param type  publish a topic
+         * @param data Sent data
+         * @returns  Whether topic are  registered subscribers
+         */
+        publish(type, data) {
+            const { subscribers } = this;
+            const fnArrays = subscribers.get(type) === undefined ?
+                [] :
+                subscribers.get(type);
+            if (fnArrays.length > 0) {
+                fnArrays.forEach((fn) => {
+                    try {
+                        fn(type, data);
+                    }
+                    catch (e) {
+                        throw new Error(`Function:${fn} execution error`);
+                    }
+                });
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+        // static update(fnArrays: Function[]) {
+        //     // fnArrays.
+        // }
+        /**
+         * Clean up all message subscribers
+         */
+        clearAllSubscriptions() {
+            this.subscribers.clear();
+        }
+    }
+
+    /**
      * 基础服务库
      * @since       1.0.0
      */
@@ -2978,6 +3393,81 @@ var nodom = (function (exports) {
         //唯一主键
         static genId() {
             return this.generatedId++;
+        }
+        /**
+         *
+         * @param paModule 父模块
+         * @param module 当前模块
+         * @param dom 当前dom
+         * @returns void
+         */
+        static handlesDatas(paModule, module, dom) {
+            return __awaiter(this, void 0, void 0, function* () {
+                const { datas } = dom;
+                const { model } = module;
+                const { dataType, name, id } = paModule;
+                if (datas === undefined || !Util.isObject(datas)) {
+                    return;
+                }
+                //datas属性
+                const dataNames = Object.getOwnPropertyNames(datas);
+                for (let i = 0; i < dataNames.length; i++) {
+                    let prop = dataNames[i];
+                    let subscribes = paModule.subscribes;
+                    let data = datas[prop];
+                    setTimeout(() => {
+                        let exp = new Expression(data[0]);
+                        let expData = exp.val(dom.model, dom);
+                        //数据类型验证
+                        if (dataType != undefined && Object.keys(dataType).indexOf(prop) !== -1) {
+                            if (dataType[prop].type !== typeof expData && (dataType[prop].type == 'array' && !Array.isArray(expData))) {
+                                return;
+                            }
+                        }
+                        model[prop] = expData;
+                        let deps = exp.getDependence(dom.model, dom);
+                        if (deps.obj === undefined) {
+                            deps.obj = paModule.model;
+                        }
+                        const { key, obj, moduleName } = deps;
+                        console.log(typeof obj, 'objjjjj', deps, exp);
+                        //双向绑定
+                        if (data[1]) {
+                            model.$watch(prop, (oldValue, newValue) => __awaiter(this, void 0, void 0, function* () {
+                                //微任务
+                                obj[key] = yield newValue;
+                            }));
+                        }
+                        let tid;
+                        if (name == moduleName) {
+                            tid = id;
+                        }
+                        else {
+                            //获取模块
+                            let subscribeMd = paModule.getChild(moduleName);
+                            if (subscribeMd !== null) {
+                                tid = subscribeMd.id;
+                                if (subscribeMd.subscribes == undefined) {
+                                    subscribes = subscribeMd.subscribes = new LocalStore();
+                                }
+                            }
+                        }
+                        let change = false;
+                        //单向绑定基本数据类型
+                        obj && obj.$watch(key, () => __awaiter(this, void 0, void 0, function* () {
+                            change = true;
+                        }));
+                        //订阅,反作用
+                        subscribes.subscribe('@data' + tid, () => {
+                            //基本数据类型可以做到双向绑定，对象为单向数据流
+                            if (Util.isObject(obj[key]) || change) {
+                                model[prop] = obj[key];
+                                change = false;
+                            }
+                        });
+                    }, 0);
+                }
+            });
         }
         /******对象相关******/
         /**
@@ -3839,299 +4329,6 @@ var nodom = (function (exports) {
     }
 
     /**
-     * 表达式类
-     */
-    class Expression {
-        /**
-         * @param exprStr	表达式串
-         */
-        constructor(exprStr) {
-            this.fields = []; // 字段数组
-            this.id = Util.genId();
-            let execStr;
-            if (exprStr) {
-                execStr = this.compile(exprStr);
-            }
-            if (execStr) {
-                let v = this.fields.length > 0 ? ',' + this.fields.join(',') : '';
-                execStr = 'function($module' + v + '){return ' + execStr + '}';
-                this.execFunc = (new Function('return ' + execStr))();
-                // this.execFunc = eval('(' + execStr + ')');
-            }
-        }
-        /**
-         * 克隆
-         */
-        clone() {
-            return this;
-        }
-        /**
-         * 初始化，把表达式串转换成堆栈
-         * @param exprStr 	表达式串
-         */
-        compile(exprStr) {
-            //替代字符串的正则数组
-            let stringReg = [/\\"/g, /\\'/g, /\\`/g, /\".*?\"/g, /'.*?'/g, /`.*?`/g];
-            let replaceMap = new Map();
-            const TMPStr = '##TMP';
-            //替换字符串
-            stringReg.forEach(reg => {
-                if (reg.test(exprStr)) {
-                    exprStr.match(reg).forEach((text) => {
-                        let index = exprStr.indexOf(text);
-                        replaceMap.set(TMPStr + index, text);
-                        exprStr = exprStr.substring(0, index) + (TMPStr + index) + exprStr.substring(index + text.length);
-                    });
-                }
-            });
-            exprStr = exprStr.trim().replace(/([w]\s)|instanceof|\s+/g, (w, index) => {
-                if (index)
-                    return index;
-                else {
-                    if (w === 'instanceof') {
-                        return ' ' + w + ' ';
-                    }
-                    return '';
-                }
-            });
-            //首尾指针
-            let [first, last] = [0, 0];
-            let [braces, fields, funArr, filters] = [[], [], [], []];
-            //括号数组 字段数组 函数数组 存过滤器需要的值
-            let filterString = '';
-            //特殊字符
-            let special = /[\?\:\!\|\*\/\+\-><=&%]/;
-            //返回的串
-            let express = '';
-            //函数名
-            let funName;
-            let isInBrace = false;
-            let isInFun = false;
-            while (last < exprStr.length) {
-                let lastStr = exprStr[last];
-                if (lastStr == '(') {
-                    if (isInFun) {
-                        //函数里存函数名
-                        funName = exprStr.substring(funArr.pop(), last);
-                        express += funName;
-                        first = last;
-                    }
-                    else {
-                        if (!isInBrace) { //不在函数里外面也不在括号里
-                            //取data内函数
-                            let mt = exprStr.substring(first, last).match(/^[\$\w]+/);
-                            if (mt) {
-                                fields.push(mt[0]);
-                            }
-                            express += exprStr.substring(first, last);
-                            first = last;
-                        }
-                    }
-                    braces.push(last++);
-                    isInBrace = true;
-                }
-                else if (lastStr == ')') {
-                    let tmpStr = exprStr.substring(braces.pop(), last);
-                    filters.push(tmpStr);
-                    if (/[\,\!\|\*\/\+\-><=&%]/.test(tmpStr)) { //字段截取需要的字母集
-                        let fieldItem = tmpStr.match(/[\w\$^\.]+/g);
-                        fields = fields.concat(fieldItem);
-                    }
-                    else {
-                        if (tmpStr.substr(1).match(/[\$\w]+/) && tmpStr.substr(1).match(/[\$\w]+/)[0].length == tmpStr.substr(1).length) { //括号里没有特殊符号
-                            fields.push(tmpStr.substr(1));
-                        }
-                        else if (tmpStr.substr(1).startsWith('...')) { //拓展运算符
-                            fields.push(tmpStr.substr(4));
-                        }
-                    }
-                    //外面没有括号
-                    if (braces.length == 0) {
-                        isInBrace = false;
-                        express += tmpStr;
-                    }
-                    //处理函数串
-                    if (isInFun) {
-                        replaceMethod();
-                        isInFun = false;
-                    }
-                    first = last++;
-                }
-                else if (lastStr == '$') {
-                    isInFun = true;
-                    funArr.push(last++);
-                }
-                else if (special.test(lastStr) && !isInBrace) {
-                    express += exprStr.substring(first, last) + lastStr;
-                    //特殊字符处理
-                    fields = fields.concat(exprStr.substring(first, last).match(/[\$\#\w^\.]+/g));
-                    if (lastStr == '=' || lastStr == '|' || lastStr == '&') { //处理重复字符，和表达式
-                        if (lastStr == '|' && exprStr[last + 1] != '|') { //表达式处理
-                            let str = filters[filters.length - 1] ? filters[filters.length - 1] : exprStr.substring(first, last);
-                            if (!filters.length) {
-                                filterString = str;
-                            }
-                            let res = handFilter();
-                            let index = express.indexOf(str);
-                            //')'和'|'
-                            express = express.substring(0, index) + res.str + express.substring(index + str.length + 2);
-                            first = last += res.length + 1;
-                            continue;
-                        }
-                        while (exprStr[last + 1] == lastStr) { //处理重复字符
-                            express += exprStr[++last];
-                        }
-                    }
-                    first = ++last;
-                }
-                else {
-                    last++;
-                }
-            }
-            let endStr = exprStr.substring(first);
-            if (endStr.indexOf(' ') === -1 && !endStr.startsWith('##TMP') && !endStr.startsWith(')')) {
-                let str = endStr.indexOf('.') != -1 ? endStr.substring(0, endStr.indexOf('.')) : endStr;
-                fields.push(str);
-            }
-            express += endStr;
-            function replaceMethod() {
-                express = express.replace(/\$[^(]+?\(/, () => {
-                    return '$module.methodFactory.get("' + funName.substr(1) + '").call($module,';
-                });
-            }
-            /**
-             * @returns {
-             * str:过滤器串
-             * length:编译跳过的长度
-             */
-            function handFilter() {
-                if (/\d+/.test(exprStr[last + 1])) {
-                    return;
-                }
-                last++;
-                let tmpStr = exprStr.substr(last).split(/[\)\(\+\-\*><=&%]/)[0];
-                let args = [];
-                let value = filters.length > 0 ? filters.pop() + ')' : filterString;
-                let num = 0;
-                tmpStr.replace(/\:/g, function (m, i) {
-                    num++;
-                    return m;
-                });
-                if (tmpStr.indexOf(':') != -1) { //有过滤器格式
-                    args = tmpStr.split(/[\:\+\-\*><=&%]/);
-                }
-                if (args.length == 0) { //如果没有过滤器参数
-                    let filterName = tmpStr.match(/^\w+/)[0];
-                    return {
-                        str: 'nodom.FilterManager.exec($module,"' + filterName + '",' + value + ')',
-                        length: filterName.length - 1,
-                    };
-                }
-                let length = args[0].length + args[1].length;
-                if (args[1].startsWith('##TMP')) { //字符串还原
-                    let deleteKey = args[1];
-                    args[1] = replaceMap.get(args[1]);
-                    replaceMap.delete(deleteKey);
-                }
-                let params = '';
-                for (let i = 1; i < num; i++) { //多个过滤器参数
-                    params += /[\'\"\`]/.test(args[i]) ? args[i] : '\'' + args[i] + '\'' + ',';
-                }
-                params = /[\'\"\`]/.test(args[num]) ? args[num] : '\'' + args[num] + '\'';
-                return {
-                    str: 'nodom.FilterManager.exec($module,"' + args[0] + '",' + value + ',' + params + ')',
-                    length,
-                };
-            }
-            if (express.indexOf('instanceof') !== -1) {
-                fields.push(express.split(' ')[0]);
-            }
-            let exclude = ['.', '$module', '##TMP', 'TMP', 'this'];
-            fields = [...(new Set(fields))].filter((v) => {
-                return v != null && exclude.reduce((sum, value) => {
-                    return sum === 0 ? 0 : (!v.startsWith(value) ? 1 : 0);
-                }, 1) === 1 && isNaN(parseInt(v, 10));
-            });
-            if (replaceMap.size) {
-                replaceMap.forEach((value, key) => {
-                    express = express.substring(0, express.indexOf(key)) + value + express.substring(express.indexOf(key) + key.length);
-                });
-            }
-            fields.forEach(field => {
-                this.addField(field);
-            });
-            return express;
-        }
-        /**
-         * 表达式计算
-         * @param model 	模型 或 fieldObj对象
-         * @returns 		计算结果
-         */
-        val(model, dom) {
-            let module = ModuleFactory.get(model.$moduleId);
-            if (!model) {
-                model = module.model;
-            }
-            let valueArr = [];
-            this.fields.forEach((field) => {
-                valueArr.push(getFieldValue(module, model, field));
-            });
-            //module作为第一个参数
-            valueArr.unshift(module);
-            let v;
-            try {
-                v = this.execFunc.apply(module, valueArr);
-                // v = this.execFunc.apply(null, valueArr);
-            }
-            catch (e) {
-            }
-            return v === undefined || v === null ? '' : v;
-            /**
-             * 获取字段值
-             * @param module    模块
-             * @param dataObj   数据对象
-             * @param field     字段名
-             * @return          字段值
-             */
-            function getFieldValue(module, dataObj, field) {
-                if (dataObj.hasOwnProperty(field)) {
-                    return dataObj[field];
-                }
-                //从根查找
-                return module.model.$query(field);
-            }
-        }
-        /**
-        * 添加字段到fields
-        * @param field 	字段
-        * @returns         true/false
-        */
-        addField(field) {
-            //js 保留字
-            const jsKeyWords = ['true', 'false', 'undefined', 'null', 'typeof',
-                'Object', 'Function', 'Array', 'Number', 'Date',
-                'instanceof', 'NaN', 'new'];
-            if (field === '' || jsKeyWords.includes(field) || Util.isNumberString(field) || field.startsWith('Math') || field.startsWith('Object')) {
-                return false;
-            }
-            //多级字段只保留第一级，如 x.y只保留x
-            let ind;
-            if ((ind = field.indexOf('.')) !== -1) {
-                if (ind == 0) {
-                    field = field.substr(1);
-                }
-                else {
-                    field = field.substr(0, ind);
-                }
-            }
-            if (!this.fields.includes(field)) {
-                this.fields.push(field);
-            }
-            return true;
-        }
-    }
-
-    /**
      * 改变的dom类型
      * 用于比较需要修改渲染的节点属性存储
      */
@@ -4259,6 +4456,11 @@ var nodom = (function (exports) {
             if (!this.model) {
                 this.model = module.model;
             }
+            //先执行model指令
+            if (this.hasDirective('model')) {
+                let d = this.getDirective('model');
+                d.exec(module, this, this.parent);
+            }
             //前置方法集合执行
             this.doRenderOp(module, 'before');
             if (this.tagName !== undefined) { //element
@@ -4309,7 +4511,6 @@ var nodom = (function (exports) {
             let type = params.type;
             let parent = params.parent;
             //重置dontRender
-            // this.dontRender = false;
             //构建el
             if (type === 'fresh' || type === 'add' || type === 'text') {
                 if (parent) {
@@ -4521,6 +4722,10 @@ var nodom = (function (exports) {
          */
         handleDirectives(module) {
             for (let d of this.directives.values()) {
+                //model指令已经执行，不再执行
+                if (d.type.name === 'model') {
+                    continue;
+                }
                 d.exec(module, this, this.parent);
                 //指令可能改变render标志
                 if (this.dontRender) {
@@ -5254,6 +5459,35 @@ var nodom = (function (exports) {
                 }
             }
         }
+        /**
+         * 获取datas
+         * @returns datas
+         */
+        getDatas() {
+            return this.datas;
+        }
+        /**
+         * 添加datas
+         * @param key 属性名
+         * @param data [原对象.数据名,bindingFlag]
+         * @returns
+         */
+        addDatas(key, data) {
+            if (!this.datas) {
+                this.datas = new Object();
+            }
+            this.datas[key] = data;
+        }
+        /**
+         * 删除datas
+         * @param key 待删除的key
+         * @returns
+         */
+        removeDatas(key) {
+            if (!this.datas)
+                return;
+            delete this.datas[key];
+        }
     }
 
     /**
@@ -5843,6 +6077,23 @@ var nodom = (function (exports) {
                     let e = attr.propName.substr(2);
                     oe.addEvent(new NEvent(e, attr.value.trim()));
                 }
+                else if (attr.propName.startsWith("d-")) {
+                    // 数据
+                    let tempArr = attr.propName.split(':');
+                    let bindFlag = false;
+                    if (tempArr.length == 2) {
+                        bindFlag = tempArr[1] == 'true' ? true : false;
+                    }
+                    let name = tempArr[0].split('-')[1];
+                    if (/\{\{.+?\}\}/.test(attr.value) === false) {
+                        throw new NError('数据必须是由双大括号包裹');
+                    }
+                    let value = attr.value.substring(2, attr.value.length - 2);
+                    // 变量别名，变量名（原对象.变量名)，双向绑定标志
+                    let data = [value, bindFlag];
+                    oe.addDatas(name, data);
+                    console.log(oe);
+                }
                 else {
                     // 普通属性 如class 等
                     let isExpr = false;
@@ -5955,8 +6206,8 @@ var nodom = (function (exports) {
             let stack2 = [{ tagName: undefined, children: [], attrs: [] }];
             let index = 0;
             // 开始标签的正则表达式 
-            let startRegExp = /^\<(\s*)([a-z\-]*[0-9]?)((?:\s+\w+\-?\w+(?:\=[\"\']?[\s\S]*?[\"\']?)?)*)*(\s*\/)?(\s*)\>/;
-            // /^\<(\s*)([a-z]+[1-6]?|ui\-[a-z]+[1-6]?)((?:\s+.+?[\"\'](?:[\s\S]*?)[\"\']|(?:\s+\w+\-?\w+)*))?(\s*\/)?(\s*)\>/
+            let startRegExp = /^\<(\s*)([a-z\-]*[0-9]?)((?:"(?:[^"]*)"+|'(?:[^']*)'+|(?:[^<>"'/]*)+)*)*(\s*\/)?(\s*)\>/;
+            // /^\<(\s*)([a-z\-]*[0-9]?)((?:\s+\w+\-?\w+(?:\=[\"\']?[\s\S]*?[\"\']?)?)*)*(\s*\/)?(\s*)\>/
             // 匹配结束标签的正则表达式
             let endRegExp = /^\<(\s*)\/(\s*)([a-z\-]*[0-9]?)(\s*)\>/;
             // /^\<(\s*)\/(\s*)([a-z]+[1-6]?|ui\-[a-z]+[1-6]?)(\s*)\>/;
@@ -6101,7 +6352,6 @@ var nodom = (function (exports) {
             if (/\{\{.+?\}\}/.test(exprStr) === false) {
                 return exprStr;
             }
-            // \}?\s*
             let reg = /\{\{.+?\}?\s*\}\}/g;
             let retA = new Array();
             let re;
@@ -6450,6 +6700,12 @@ var nodom = (function (exports) {
                     module.addChild(m.id);
                     //传props值
                     m.props = Util.clone(dom.props);
+                    //处理dates
+                    if (module.subscribes === undefined) {
+                        module.subscribes = new LocalStore();
+                    }
+                    //传入父模块，当前模块，当前dom
+                    Util.handlesDatas(module, m, dom);
                     //插槽
                     if (dom.children.length > 0) {
                         let slotMap = new Map();
@@ -6476,6 +6732,7 @@ var nodom = (function (exports) {
             else if (subMdl && subMdl.state !== 3) {
                 yield subMdl.active();
             }
+            //插槽
             function findSlot(dom, res = new Array()) {
                 if (dom.hasTmpParam('slotName')) {
                     res.push({
@@ -6823,39 +7080,46 @@ var nodom = (function (exports) {
          */
         DirectiveManager.addType('animation', 9, (directive, dom) => {
             let arr = directive.value.trim().split('|');
-            if (arr[0].trim().startsWith('{')) {
-                arr[0] = new Function(`return  ${arr[0]}`)();
+            let privateName = ['fade', 'scale-fixtop', 'scale-fixleft', 'scale-fixbottom', 'scale-fixright', 'scale-fixcenterX', 'scale-fixcenterY'];
+            if (privateName.includes(arr[0].trim())) {
+                arr[0] = arr[0].trim();
+            }
+            else {
+                arr[0] = new Expression(arr[0].trim());
             }
             // 渲染标志
             if (arr[1]) {
                 arr[1] = new Expression(arr[1].trim());
             }
             else {
-                arr[1] = true; // 如果没有传入渲染标志，则说明只需要在元素渲染的时候启用动画。直接吧渲染标志设置成true
+                // 如果没有传入渲染标志，则说明只需要在元素渲染的时候启用动画。直接吧渲染标志设置成true
+                arr[1] = true;
             }
             directive.value = arr;
         }, (directive, dom, module, parent) => {
             var _a, _b, _c, _d, _e, _f;
             let arr = directive.value;
-            let confObj;
-            if (!Util.isObject(arr[0])) {
-                confObj = dom.model.$query(arr[0]);
-            }
-            else {
-                confObj = arr[0];
-            }
-            if (!Util.isObject(confObj)) {
-                return new NError('animation配置必须是一个对象');
-            }
             let cls = dom.getProp('class');
             let model = dom.model;
             if (Util.isString(cls) && !Util.isEmpty(cls)) {
                 cls.trim().split(/\s+/);
             }
+            let confObj = arr[0];
+            if (arr[0] instanceof Expression) {
+                confObj = confObj.val(model, dom);
+            }
+            else {
+                confObj = {
+                    name: confObj
+                };
+            }
+            if (!Util.isObject(confObj)) {
+                return new NError('未找到animation配置对象');
+            }
             let renderFlag = arr[1];
             let nameEnter = ((_a = confObj.name) === null || _a === void 0 ? void 0 : _a.enter) || confObj.name;
             let nameLeave = ((_b = confObj.name) === null || _b === void 0 ? void 0 : _b.leave) || confObj.name;
-            let hiddenMode = confObj.hiddenMode || 'visibility';
+            let hiddenMode = confObj.hiddenMode || 'display';
             let durationEnter = ((_c = confObj.duration) === null || _c === void 0 ? void 0 : _c.enter) || '0.3s';
             let durationLeave = ((_d = confObj.duration) === null || _d === void 0 ? void 0 : _d.leave) || '0.3s';
             let delayEnter = ((_e = confObj.delay) === null || _e === void 0 ? void 0 : _e.enter) || '0s'; // 如果不配置则默认不延迟
@@ -6972,8 +7236,13 @@ var nodom = (function (exports) {
                     else {
                         // 当前处于显示状态 
                         // 为了不重复播放显示动画，这里直接返回
+                        dom.addClass('nd-animation-' + nameEnter + '-enter');
                         return;
                     }
+                }
+                else {
+                    dom.addClass('nd-animation-' + nameEnter + '-enter');
+                    dom.dontRender = false;
                 }
             }
         });
@@ -6984,7 +7253,6 @@ var nodom = (function (exports) {
         DirectiveManager.addType('class', 10, (directive, dom) => {
             if (typeof directive.value === 'string') {
                 //转换为json数据
-                // let obj = eval('(' + directive.value + ')');
                 let obj = new Function('return ' + directive.value)();
                 if (!Util.isObject(obj)) {
                     return;
@@ -7809,71 +8077,6 @@ var nodom = (function (exports) {
         }
     };
 
-    class MessageManager {
-        /**
-         *
-         * @param type  register a topic
-         * @param fn    create a function to subscribe to topics
-         * @returns     A function to unsubscribe from this topic
-         */
-        static subscribe(type, fn) {
-            if (!Util.isFunction(fn)) {
-                throw new Error(`${fn} should be a function`);
-            }
-            const { subscribers } = MessageManager;
-            const fnArrays = subscribers.get(type) === undefined ?
-                subscribers.set(type, new Array()).get(type) :
-                subscribers.get(type);
-            fnArrays.push(fn);
-            return () => {
-                const index = fnArrays.indexOf(fn);
-                if (index === -1) {
-                    return;
-                }
-                fnArrays.splice(index, 1);
-            };
-        }
-        /**
-         *
-         * @param type  publish a topic
-         * @param data Sent data
-         * @returns  Whether topic are  registered subscribers
-         */
-        static publish(type, data) {
-            const { subscribers } = MessageManager;
-            const fnArrays = subscribers.get(type) === undefined ?
-                [] :
-                subscribers.get(type);
-            if (fnArrays.length > 0) {
-                fnArrays.forEach((fn) => {
-                    try {
-                        fn(type, data);
-                    }
-                    catch (e) {
-                        throw new Error(`Function:${fn} execution error`);
-                    }
-                });
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-        // static update(fnArrays: Function[]) {
-        //     // fnArrays.
-        // }
-        /**
-         * Clean up all message subscribers
-         */
-        static clearAllSubscriptions() {
-            MessageManager.subscribers.clear();
-        }
-    }
-    /**
-     * all topic  subscribers
-     */
-    MessageManager.subscribers = new Map();
-
     exports.Application = Application;
     exports.ChangedDom = ChangedDom;
     exports.Compiler = Compiler;
@@ -7887,8 +8090,8 @@ var nodom = (function (exports) {
     exports.ExternalNEvent = ExternalNEvent;
     exports.Filter = Filter;
     exports.FilterManager = FilterManager;
+    exports.LocalStore = LocalStore;
     exports.Message = Message;
-    exports.MessageManager = MessageManager;
     exports.MessageQueue = MessageQueue;
     exports.MethodFactory = MethodFactory;
     exports.Model = Model$1;

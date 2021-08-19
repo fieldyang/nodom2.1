@@ -1,31 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<script type="text/javascript" src="../dist/nodom.js"></script>
+		<script src="config/module.js"></script>
+		<script type="text/javascript" src="./js/kayak.js"></script>
+		<style>
+			.red {
+				color: red;
+			}
+		</style>
+		<title>pubsub</title>
+	</head>
 
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script type="text/javascript" src="../dist/nodom.js"></script>
-    <script src="config/module.js"></script>
-    <script type="text/javascript" src="./js/kayak.js"></script>
-    <style>
-        .red{
-            color: red;
-        }
-    </style>
-    <title>pubsub</title>
-</head>
+	<body>
+		<div id="app">
+			<div>pubsub模块间发布消息</div>
 
-<body>
-    <div id="app">
-        <div>pubsub模块间发布消息</div>
-
-        <span>点我:  </span>
-        <button e-click='publish' class="red">发布消息</button>
-        <hr>
-        <Count></Count>
-        <hr>
-        <md-a>
+			<span>点我: </span>
+			<button e-click="publish" class="red">发布消息</button>
+			<hr />
+			<Count></Count>
+			<hr />
+			<!-- <md-a>
             <div x-slot='picture'>
                 <section>
                     <div>只当前实例模块订阅</div>
@@ -55,34 +54,46 @@
             <div x-slot='picture'>
                 {{add}}
             </div>
-        </md-a>
-        <hr>
-    </div>
-</body>
+        </md-a> -->
+			<hr />
+		</div>
+	</body>
 
-<script>
-    nodom.app({
-        module: {
-            el: '#app',
-            data: {
-                name: 'kyle',
-                num: 0
-            },
-            methods: {
-                registerModule: () => {
-                    return [{
-                        name: "Count",
-                        class: "Store",
-                    }];
-                },
-                publish() {
-                    const data = Math.random() * 10 | 0;
-                    console.log(data);
-                    nodom.MessageManager.publish('add', data);
-                }
-            }
-        }
-    })
-</script>
+	<script>
+		const store = nodom.createStore((cont = 0, action) => {
+			switch (action.type) {
+				case "add":
+					return cont + action.data;
+				case "dec":
+					return cont - action.data;
+				default:
+					return pre;
+			}
+		});
 
+		nodom.app({
+			module: {
+				el: "#app",
+				data: {
+					name: "kyle",
+					num: 0,
+				},
+				methods: {
+					registerModule: () => {
+						return [
+							{
+								name: "Count",
+								class: "Store",
+							},
+						];
+					},
+					publish() {
+						const data = (Math.random() * 10) | 0;
+						console.log(data);
+						nodom.MessageManager.publish("add", data);
+					},
+				},
+			},
+		});
+	</script>
 </html>

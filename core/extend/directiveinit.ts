@@ -5,6 +5,7 @@ import { NError } from "../error";
 import { NEvent } from "../event";
 import { Expression } from "../expression";
 import { Filter } from "../filter";
+import { LocalStore } from "../localstore";
 import { Model } from "../model";
 import { Module } from "../module";
 import { ModuleFactory } from "../modulefactory";
@@ -71,8 +72,13 @@ export default (function () {
                     module.addChild(m.id);
                     //传props值
                     m.props = Util.clone(dom.props);
-                    // handlesData(m,dom)
-                   
+                    //处理dates
+                    if (module.subscribes === undefined) {
+                        module.subscribes = new LocalStore();
+                    }
+                    //传入父模块，当前模块，当前dom
+                    Util.handlesDatas(module,m, dom);
+
                     //插槽
                     if (dom.children.length > 0) {
                         let slotMap: Map<string, Element> = new Map();

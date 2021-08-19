@@ -2,7 +2,9 @@ import { Element } from "./element";
 import { Model } from "./model";
 import { Module } from "./module";
 import { ModuleFactory } from "./modulefactory";
+import { ExpressionMd } from "./types";
 import { Util } from "./util";
+
 
 /**
  * 表达式类
@@ -23,6 +25,12 @@ export class Expression {
      */
     execFunc: Function;
 
+    dependencies: ExpressionMd;
+    dependenciesFunc: any;
+    keyFunc: Function;
+    objFunc: Function;
+    keyArray: any[];
+
     /**
      * @param exprStr	表达式串
      */
@@ -35,10 +43,62 @@ export class Expression {
         }
         if (execStr) {
             let v: string = this.fields.length > 0 ? ',' + this.fields.join(',') : '';
+            this.handlesDep(execStr);
             execStr = 'function($module' + v + '){return ' + execStr + '}';
-            this.execFunc=(new Function( 'return '+execStr))();
-            // this.execFunc = eval('(' + execStr + ')');
+            this.execFunc = (new Function('return ' + execStr))();
         }
+    }
+    //处理模块依赖
+    handlesDep(execStr: string) {
+
+        let index = execStr.lastIndexOf('.');
+
+        if (index !== -1) {
+            this.dependencies = {
+                obj: execStr.substring(0, index),
+                key: execStr.substring(index + 1),
+                moduleName: execStr.substring(0, execStr.indexOf('.'))
+            }
+            let { key, obj, moduleName } = this.dependencies;
+            let keys = [];
+            //key有关键词
+            if (this.fields.reduce((pre, v) => {
+                if (key.indexOf(v) !== -1) {
+                    keys.push(v);
+                    return pre + 1;
+                }
+            }, 0)) {
+
+                this.keyFunc = new Function(`return function($module, ${keys.join(',')}  ){return  ${key}  }`)();
+                this.keyArray = keys;
+
+            }
+            this.dependencies.obj = obj.replace(moduleName, moduleName + '.model');
+
+            this.objFunc = new Function(`return function( $module,${this.fields.join(',')}  ){return  ${this.dependencies.obj}  }`)();
+        } else {
+            this.dependencies = {
+                key: execStr,
+                obj: '',
+                moduleName: ''
+            }
+        }
+
+    }
+
+    //获取模块相应数据
+    getDependence(model: Model, dom: Element) {
+        if (this.dependencies.moduleName === '') {
+            //赋值模块名
+            this.dependencies.moduleName = ModuleFactory.get(model.$moduleId).name;
+        }
+        const { dependencies } = this;
+
+        if (this.keyFunc !== undefined) {
+            dependencies['key'] = this.val(model, dom, this.keyFunc, this.keyArray)
+        }
+        dependencies['obj'] = this.objFunc ? this.val(model, dom, this.objFunc, this.fields, true) : undefined;
+        return dependencies;
     }
 
     /**
@@ -222,7 +282,7 @@ export class Expression {
         if (express.indexOf('instanceof') !== -1) {
             fields.push(express.split(' ')[0]);
         }
-        let exclude = ['.', '$module', '##TMP', 'TMP','this'];
+        let exclude = ['.', '$module', '##TMP', 'TMP', 'this'];
         fields = [...(new Set(fields))].filter((v) => {
             return v != null && exclude.reduce((sum, value) => {
                 return sum === 0 ? 0 : (!v.startsWith(value) ? 1 : 0);
@@ -244,21 +304,22 @@ export class Expression {
      * @param model 	模型 或 fieldObj对象 
      * @returns 		计算结果
      */
-    public val(model: Model, dom: Element) {
+    public val(model: Model, dom: Element, func?: Function, field?: Array<string>, realModule?: boolean) {
         let module: Module = ModuleFactory.get(model.$moduleId);
         if (!model) {
             model = module.model;
         }
         let valueArr = [];
-        this.fields.forEach((field) => {
-            valueArr.push(getFieldValue(module, model, field));
+        let fields = field ? field : this.fields;
+        fields.forEach((field) => {
+            valueArr.push(getFieldValue(module, model, field, realModule));
         });
         //module作为第一个参数
         valueArr.unshift(module);
         let v;
         try {
-             v = this.execFunc.apply(module, valueArr);
-             // v = this.execFunc.apply(null, valueArr);
+            let fn = func ? func : this.execFunc;
+            v = fn.apply(module, valueArr);
         } catch (e) {
         }
         return v === undefined || v === null ? '' : v;
@@ -269,9 +330,15 @@ export class Expression {
          * @param field     字段名
          * @return          字段值
          */
-        function getFieldValue(module: Module, dataObj: Object, field: string) {
+        function getFieldValue(module: Module, dataObj: Object, field: string, realModule?: boolean) {
             if (dataObj.hasOwnProperty(field)) {
                 return dataObj[field];
+            }
+            //兄弟模块
+            const md: Module = module.getChild(field);
+            if (md !== null) {
+                // this.dependencies = true;
+                return realModule ? md : md.model;
             }
             //从根查找
             return module.model.$query(field);

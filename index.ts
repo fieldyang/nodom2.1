@@ -18,7 +18,7 @@ export { FilterManager } from "./core/filtermanager";
 export { NodomMessage_en } from "./core/locales/msg_en";
 export { NodomMessage_zh } from "./core/locales/msg_zh";
 export { Message, MessageQueue } from "./core/messagequeue";
-export { MessageManager } from "./core/messagemanager";
+export { LocalStore } from "./core/localstore";
 export { MethodFactory } from "./core/methodfactory";
 export { Model, modelCloneExpKey } from "./core/model";
 export { ModelManager } from "./core/modelmanager";

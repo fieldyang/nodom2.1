@@ -13,6 +13,7 @@ class ModuleA extends nodom.Module {
                 <ul>
                     <li x-repeat='foods' class='item'>{{name}}</li>
                 </ul>
+                <div>  title:{{add}}</div>
             `,
             requires:[{type:'css',url:'index.css'}],
             methods: {
