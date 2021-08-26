@@ -1371,22 +1371,16 @@ var nodom = (function (exports) {
                 }
                 //执行每次渲染后事件
                 this.doModuleEvent('onRender');
-                //通知更新数据
-                // if (this.subscribes) {
-                //     this.subscribes.publish('@data' + this.id, null);
-                //     this.subscribes.publish('@dataTry' + this.id, null);
-                // }
-                // let md: Module = ModuleFactory.get(this.parentId);
-                // if (md && md.subscribes !== undefined) {
-                //     md.subscribes.publish('@dataTry' + this.parentId, null);
-                // }
             }
+            //通知更新数据
             if (this.subscribes) {
                 this.subscribes.publish('@data' + this.id, null);
-                this.subscribes.publish('@dataTry' + this.id, null);
+                if (Array.isArray(this.subscribes.subscribers) && this.subscribes.subscribers.get('@dataTry').length !== 0) {
+                    this.subscribes.publish('@dataTry' + this.id, null);
+                }
             }
             let md = ModuleFactory.get(this.parentId);
-            if (md && md.subscribes !== undefined) {
+            if (md && md.subscribes !== undefined && Array.isArray(md.subscribes.subscribers) && md.subscribes.subscribers.get('@dataTry').length !== 0) {
                 md.subscribes.publish('@dataTry' + this.parentId, null);
             }
             //数组还原
@@ -3003,55 +2997,9 @@ var nodom = (function (exports) {
             }
             if (execStr) {
                 let v = this.fields.length > 0 ? ',' + this.fields.join(',') : '';
-                this.handlesDep(execStr);
                 execStr = 'function($module' + v + '){return ' + execStr + '}';
                 this.execFunc = (new Function('return ' + execStr))();
             }
-        }
-        //处理模块依赖
-        handlesDep(execStr) {
-            let index = execStr.lastIndexOf('.');
-            if (index !== -1) {
-                this.dependencies = {
-                    obj: execStr.substring(0, index),
-                    key: execStr.substring(index + 1),
-                    moduleName: execStr.substring(0, execStr.indexOf('.'))
-                };
-                let { key, obj, moduleName } = this.dependencies;
-                let keys = [];
-                //key有关键词
-                if (this.fields.reduce((pre, v) => {
-                    if (key.indexOf(v) !== -1) {
-                        keys.push(v);
-                        return pre + 1;
-                    }
-                }, 0)) {
-                    this.keyFunc = new Function(`return function($module, ${keys.join(',')}  ){return  ${key}  }`)();
-                    this.keyArray = keys;
-                }
-                this.dependencies.obj = obj.replace(moduleName, moduleName + '.model');
-                this.objFunc = new Function(`return function( $module,${this.fields.join(',')}  ){return  ${this.dependencies.obj}  }`)();
-            }
-            else {
-                this.dependencies = {
-                    key: execStr,
-                    obj: '',
-                    moduleName: ''
-                };
-            }
-        }
-        //获取模块相应数据
-        getDependence(model, dom) {
-            if (this.dependencies.moduleName === '') {
-                //赋值模块名
-                this.dependencies.moduleName = ModuleFactory.get(model.$moduleId).name;
-            }
-            const { dependencies } = this;
-            if (this.keyFunc !== undefined) {
-                dependencies['key'] = this.val(model, dom, this.keyFunc, this.keyArray);
-            }
-            dependencies['obj'] = this.objFunc ? this.val(model, dom, this.objFunc, this.fields, true) : undefined;
-            return dependencies;
         }
         /**
          * 克隆
@@ -3094,7 +3042,7 @@ var nodom = (function (exports) {
             //括号数组 字段数组 函数数组 存过滤器需要的值
             let filterString = '';
             //特殊字符
-            let special = /[\?\:\!\|\*\/\+\-><=&%]/;
+            let special = /[\?\:\,\!\|\*\/\+\-><=&%]/;
             //返回的串
             let express = '';
             //函数名
@@ -3184,8 +3132,10 @@ var nodom = (function (exports) {
             }
             let endStr = exprStr.substring(first);
             if (endStr.indexOf(' ') === -1 && !endStr.startsWith('##TMP') && !endStr.startsWith(')')) {
-                let str = endStr.indexOf('.') != -1 ? endStr.substring(0, endStr.indexOf('.')) : endStr;
-                fields.push(str);
+                let str = endStr.match(/[A-za-z$]+/);
+                if (str !== null) {
+                    fields.push(str[0]);
+                }
             }
             express += endStr;
             function replaceMethod() {
@@ -3261,22 +3211,19 @@ var nodom = (function (exports) {
          * @param model 	模型 或 fieldObj对象
          * @returns 		计算结果
          */
-        val(model, dom, func, field, realModule) {
+        val(model) {
             let module = ModuleFactory.get(model.$moduleId);
-            if (!model) {
+            if (!model)
                 model = module.model;
-            }
             let valueArr = [];
-            let fields = field ? field : this.fields;
-            fields.forEach((field) => {
-                valueArr.push(getFieldValue(module, model, field, realModule));
+            this.fields.forEach((field) => {
+                valueArr.push(getFieldValue(module, model, field));
             });
             //module作为第一个参数
             valueArr.unshift(module);
             let v;
             try {
-                let fn = func ? func : this.execFunc;
-                v = fn.apply(module, valueArr);
+                v = this.execFunc.apply(module, valueArr);
             }
             catch (e) {
             }
@@ -3288,15 +3235,9 @@ var nodom = (function (exports) {
              * @param field     字段名
              * @return          字段值
              */
-            function getFieldValue(module, dataObj, field, realModule) {
+            function getFieldValue(module, dataObj, field) {
                 if (dataObj.hasOwnProperty(field)) {
                     return dataObj[field];
-                }
-                //兄弟模块
-                const md = module.getChild(field);
-                if (md !== null) {
-                    // this.dependencies = true;
-                    return realModule ? md : md.model;
                 }
                 //从根查找
                 return module.model.$query(field);
@@ -3426,26 +3367,23 @@ var nodom = (function (exports) {
                 //datas属性
                 const dataNames = Object.getOwnPropertyNames(datas);
                 for (let i = 0; i < dataNames.length; i++) {
-                    let prop = dataNames[i];
-                    //localStore
                     paModule.subscribes = paModule.subscribes || new LocalStore();
-                    let subscribes = paModule.subscribes;
-                    let data = datas[prop];
+                    let prop = dataNames[i], subscribes = paModule.subscribes, data = datas[prop], dependencies, objModel, valStr;
                     //表达式
                     let exp = new Expression(data[0]);
-                    //获取依赖对象
-                    let deps = exp.getDependence(dom.model, dom);
+                    //处理依赖
+                    handlesDependencies(data[0]);
                     //默认值
-                    deps.obj = deps.obj || paModule.model;
+                    dependencies.obj = dependencies.obj || paModule.model;
                     //获取的到数据对象
-                    if (deps.obj !== '') {
-                        updated(deps);
+                    if (dependencies.obj !== '') {
+                        updated(dependencies);
                     }
                     else {
                         let unSubScribe = subscribes.subscribe('@dataTry' + id, () => {
-                            let dp = exp.getDependence(dom.model, dom);
-                            if (dp.obj !== '') {
-                                updated(dp);
+                            handlesDependencies(data[0]);
+                            if (dependencies.obj !== '') {
+                                updated(dependencies);
                                 //取消订阅
                                 unSubScribe();
                             }
@@ -3455,7 +3393,7 @@ var nodom = (function (exports) {
                     function updated(Dependence) {
                         Dependence.obj = Dependence.obj || paModule.model;
                         const { key, obj, moduleName } = Dependence;
-                        let expData = exp.val(dom.model, dom);
+                        let expData = (valStr || exp).val(objModel);
                         //预留 数据类型验证
                         if (dataType != undefined && Object.keys(dataType).indexOf(prop) !== -1) {
                             if (dataType[prop].type !== typeof expData && (dataType[prop].type == 'array' && !Array.isArray(expData))) {
@@ -3497,6 +3435,66 @@ var nodom = (function (exports) {
                                 change = false;
                             }
                         });
+                    }
+                    //处理依赖关系
+                    function handlesDependencies(execStr) {
+                        let index = execStr.lastIndexOf('.');
+                        let keyFunc, objFunc, keyArray, 
+                        //数据源模块
+                        objMd;
+                        if (index !== -1) {
+                            dependencies = {
+                                obj: execStr.substring(0, index),
+                                key: execStr.substring(index + 1),
+                                moduleName: execStr.substring(0, execStr.indexOf('.'))
+                            };
+                            let { key, moduleName } = dependencies;
+                            let keys = [];
+                            //key有关键词
+                            if (exp.fields.reduce((pre, v) => {
+                                if (key.indexOf(v) !== -1) {
+                                    keys.push(v);
+                                    return pre + 1;
+                                }
+                            }, 0)) {
+                                keyFunc = new Function(`return function(${keys.join(',')}  ){return  ${key}  }`)();
+                                keyArray = keys;
+                            }
+                            valStr = new Expression(execStr.replace(moduleName + '.', ''));
+                        }
+                        else {
+                            dependencies = {
+                                key: execStr,
+                                obj: '',
+                                moduleName: ''
+                            };
+                        }
+                        let { obj, moduleName } = dependencies;
+                        if (dependencies.moduleName === '') {
+                            //赋值模块名
+                            dependencies.moduleName = paModule.name;
+                            objMd = paModule;
+                        }
+                        else {
+                            dependencies.obj = obj.replace(moduleName, 'this');
+                            objMd = paModule.getChild(moduleName) || module;
+                            objFunc = new Function(`return function(${exp.fields.join(',')}  ){return  ${dependencies.obj}  }`)();
+                        }
+                        objModel = objMd.model;
+                        if (keyFunc !== undefined) {
+                            dependencies['key'] = keyFunc.apply(objMd, keyArray.map(field => {
+                                if (objModel.hasOwnProperty(field)) {
+                                    return objModel[field];
+                                }
+                                return objModel.$query(field);
+                            }));
+                        }
+                        dependencies['obj'] = objFunc ? objFunc.apply(objModel, exp.fields.map(field => {
+                            if (objModel.hasOwnProperty(field)) {
+                                return objModel[field];
+                            }
+                            return objModel.$query(field);
+                        })) : undefined;
                     }
                 }
             });
@@ -4775,12 +4773,12 @@ var nodom = (function (exports) {
             let model = this.model;
             let value = '';
             if (exprArr.length === 1 && typeof exprArr[0] !== 'string') {
-                let v1 = exprArr[0].val(model, this);
+                let v1 = exprArr[0].val(model);
                 return v1 !== undefined ? v1 : '';
             }
             exprArr.forEach((v) => {
                 if (v instanceof Expression) { //处理表达式
-                    let v1 = v.val(model, this);
+                    let v1 = v.val(model);
                     value += v1 !== undefined ? v1 : '';
                 }
                 else {
@@ -7156,7 +7154,7 @@ var nodom = (function (exports) {
             let delayEnter = ((_e = confObj.delay) === null || _e === void 0 ? void 0 : _e.enter) || '0s'; // 如果不配置则默认不延迟
             let delayLeave = ((_f = confObj.delay) === null || _f === void 0 ? void 0 : _f.leave) || '0s'; // 如果不配置则默认不延迟
             if (renderFlag instanceof Expression) {
-                renderFlag = renderFlag.val(model, dom);
+                renderFlag = renderFlag.val(model);
             }
             let el = document.querySelector(`[key='${dom.key}']`);
             // 定义动画结束回调。
@@ -7311,7 +7309,7 @@ var nodom = (function (exports) {
             Util.getOwnProps(obj).forEach(function (key) {
                 let r = obj[key];
                 if (r instanceof Expression) {
-                    r = r.val(model, dom);
+                    r = r.val(model);
                 }
                 let ind = clsArr.indexOf(key);
                 if (!r || r === 'false') {

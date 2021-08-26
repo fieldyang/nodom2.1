@@ -404,13 +404,13 @@ export class Module {
         //通知更新数据
         if (this.subscribes) {
             this.subscribes.publish('@data' + this.id, null);
-            if (this.subscribes.subscribers.get('@dataTry').length !== 0) {
+            if (Array.isArray(this.subscribes.subscribers)&&this.subscribes.subscribers.get('@dataTry').length !== 0) {
                 this.subscribes.publish('@dataTry' + this.id, null);
             }
 
         }
         let md: Module = ModuleFactory.get(this.parentId);
-        if (md && md.subscribes !== undefined && md.subscribes.subscribers.get('@dataTry').length !== 0) {
+        if (md && md.subscribes !== undefined &&Array.isArray(md.subscribes.subscribers)&& md.subscribes.subscribers.get('@dataTry').length !== 0) {
             md.subscribes.publish('@dataTry' + this.parentId, null);
         }
 

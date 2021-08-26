@@ -11,12 +11,13 @@ class ModuleC extends nodom.Module {
                 msg1: '',
             },
             methods: {
-                sendMsg: function (dom, model, module) {
-                    console.log(this.name);
+                sendMsg: function (dom, module) {
+                    console.log(this,module);
                    
                      this.type++;
                      this.data++;
                      this.name++;
+                     this.add++;
                      setTimeout(() => {
                          this.keys='as';
                      }, 2000);

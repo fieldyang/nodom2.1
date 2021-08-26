@@ -456,12 +456,13 @@ export class Element {
         let model: Model = this.model;
         let value = '';
         if (exprArr.length === 1 && typeof exprArr[0] !== 'string') {
-            let v1 = exprArr[0].val(model, this);
+            let v1 = exprArr[0].val(model);
             return v1 !== undefined ? v1 : '';
         }
         exprArr.forEach((v) => {
             if (v instanceof Expression) { //处理表达式
-                let v1 = v.val(model, this);
+
+                let v1 = v.val(model);
                 value += v1 !== undefined ? v1 : '';
             } else {
                 value += v;

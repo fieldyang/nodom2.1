@@ -559,7 +559,7 @@ export default (function () {
             let delayEnter = confObj.delay?.enter || '0s'; // 如果不配置则默认不延迟
             let delayLeave = confObj.delay?.leave || '0s';// 如果不配置则默认不延迟
             if (renderFlag instanceof Expression) {
-                renderFlag = renderFlag.val(model, dom);
+                renderFlag = renderFlag.val(model);
             }
             let el: HTMLElement = document.querySelector(`[key='${dom.key}']`)
             // 定义动画结束回调。
@@ -712,7 +712,7 @@ export default (function () {
             Util.getOwnProps(obj).forEach(function (key) {
                 let r = obj[key];
                 if (r instanceof Expression) {
-                    r = r.val(model, dom);
+                    r = r.val(model);
                 }
                 let ind = clsArr.indexOf(key);
                 if (!r || r === 'false') {

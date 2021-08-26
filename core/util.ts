@@ -5,6 +5,9 @@ import { Expression } from "./expression";
 import { LocalStore } from "./localstore";
 import { Module } from "./module";
 import { ExpressionMd } from "./types";
+import { ModuleFactory } from "./modulefactory";
+import { Model } from "./model";
+import { ModelManager } from "./modelmanager";
 
 /**
  * 基础服务库
@@ -36,26 +39,29 @@ export class Util {
         const dataNames = Object.getOwnPropertyNames(datas);
 
         for (let i = 0; i < dataNames.length; i++) {
-            let prop: string = dataNames[i];
-            //localStore
             paModule.subscribes = paModule.subscribes || new LocalStore();
-            let subscribes = paModule.subscribes;
-            let data = datas[prop];
+            let prop: string = dataNames[i],
+                subscribes = paModule.subscribes,
+                data = datas[prop],
+                dependencies: ExpressionMd,
+                objModel: Model,
+                valStr: Expression;
+
             //表达式
             let exp: Expression = new Expression(data[0]);
-            //获取依赖对象
-            let deps = exp.getDependence(dom.model, dom);
+            //处理依赖
+            handlesDependencies(data[0]);
             //默认值
-            deps.obj = deps.obj || paModule.model;
+            dependencies.obj = dependencies.obj || paModule.model;
 
             //获取的到数据对象
-            if (deps.obj !== '') {
-                updated(deps);
+            if (dependencies.obj !== '') {
+                updated(dependencies);
             } else {
                 let unSubScribe: Function = subscribes.subscribe('@dataTry' + id, () => {
-                    let dp = exp.getDependence(dom.model, dom);
-                    if (dp.obj !== '') {
-                        updated(dp);
+                    handlesDependencies(data[0]);
+                    if (dependencies.obj !== '') {
+                        updated(dependencies);
                         //取消订阅
                         unSubScribe();
                     }
@@ -65,7 +71,7 @@ export class Util {
             function updated(Dependence: ExpressionMd) {
                 Dependence.obj = Dependence.obj || paModule.model;
                 const { key, obj, moduleName } = Dependence;
-                let expData = exp.val(dom.model, dom);
+                let expData = (valStr || exp).val(objModel);
 
                 //预留 数据类型验证
                 if (dataType != undefined && Object.keys(dataType).indexOf(prop) !== -1) {
@@ -73,7 +79,6 @@ export class Util {
                         return;
                     }
                 }
-
                 model[prop] = expData;
 
                 //双向绑定
@@ -110,8 +115,69 @@ export class Util {
                         model[prop] = obj[key];
                         change = false;
                     }
-
                 });
+            }
+            //处理依赖关系
+            function handlesDependencies(execStr: string) {
+                let index = execStr.lastIndexOf('.');
+                let keyFunc: Function,
+                    objFunc: Function,
+                    keyArray: Array<string>,
+                    //数据源模块
+                    objMd: Module
+                    ;
+                if (index !== -1) {
+                    dependencies = {
+                        obj: execStr.substring(0, index),
+                        key: execStr.substring(index + 1),
+                        moduleName: execStr.substring(0, execStr.indexOf('.'))
+                    }
+                    let { key, moduleName } = dependencies;
+                    let keys = [];
+                    //key有关键词
+                    if (exp.fields.reduce((pre, v) => {
+                        if (key.indexOf(v) !== -1) {
+                            keys.push(v);
+                            return pre + 1;
+                        }
+                    }, 0)) {
+                        keyFunc = new Function(`return function(${keys.join(',')}  ){return  ${key}  }`)();
+                        keyArray = keys;
+                    }
+                    valStr = new Expression(execStr.replace(moduleName + '.', ''));
+                } else {
+                    dependencies = {
+                        key: execStr,
+                        obj: '',
+                        moduleName: ''
+                    }
+                }
+                let { obj, moduleName } = dependencies;
+                if (dependencies.moduleName === '') {
+                    //赋值模块名
+                    dependencies.moduleName = paModule.name;
+                    objMd = paModule;
+                } else {
+                    dependencies.obj = obj.replace(moduleName, 'this');
+                    objMd = paModule.getChild(moduleName) || module;
+                    objFunc = new Function(`return function(${exp.fields.join(',')}  ){return  ${dependencies.obj}  }`)();
+                }
+                objModel = objMd.model;
+
+                if (keyFunc !== undefined) {
+                    dependencies['key'] = keyFunc.apply(objMd, keyArray.map(field => {
+                        if (objModel.hasOwnProperty(field)) {
+                            return objModel[field];
+                        };
+                        return objModel.$query(field);
+                    }));
+                }
+                dependencies['obj'] = objFunc ? objFunc.apply(objModel, exp.fields.map(field => {
+                    if (objModel.hasOwnProperty(field)) {
+                        return objModel[field];
+                    };
+                    return objModel.$query(field);
+                })) : undefined;
             }
         }
     }

@@ -21,8 +21,8 @@
 
 <body>
 	<div>
-		<div x-module='ModuleC|modc1' update={{this.add}} d-type:true="{{users}}"  d-data:true="{{title.add}}" d-name:false={{name}}></div>
-		{{users}}{{name}}
+		<div x-module='ModuleC|modc1' update={{{'add':this.add}}}  d-name:true={{name}} d-add:true={{title.add}}></div>
+		{{user}}{{name}}
 		<div name='{{sum}}'>1</div>
 		<button e-click="click">click</button>
 		<h3>普通模块,插槽</h3>
@@ -83,7 +83,7 @@
 							data: "data/data2.json",
 						},
 					],
-					users:13,
+					user:13,
 					name:2
 				},
 				methods: {
@@ -92,6 +92,7 @@
 					console.log(this);
 					this.users++;
 					this.name++;
+					this.add++;
 				},
 				registerModule: function () {
 					return [{
