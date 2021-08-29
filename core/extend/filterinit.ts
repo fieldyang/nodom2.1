@@ -228,6 +228,7 @@ export default (function(){
                 }
                 //自定义函数
                 let foo = this.methodFactory.get(param);
+                
                 if (Util.isFunction(foo)) {
                     return Util.apply(foo,this,[arr]);
                 }

@@ -4,7 +4,7 @@ export class LocalStore {
     /**
      * all topic  subscribers
      */
-     subscribers: Map<string | symbol, Array<Function>> = new Map();
+    subscribers: Map<string | symbol, Array<Function>> = new Map();
 
 
     /**
@@ -13,7 +13,7 @@ export class LocalStore {
      * @param fn    create a function to subscribe to topics
      * @returns     A function to unsubscribe from this topic
      */
-     subscribe(type: string | symbol, fn: Function): Function {
+    subscribe(type: string | symbol, fn: Function): Function {
 
         if (!Util.isFunction(fn)) {
             throw new Error(`${fn} should be a function`);
@@ -38,7 +38,7 @@ export class LocalStore {
      * 
      * @param type  publish a topic
      * @param data Sent data
-     * @returns  Whether topic are  registered subscribers
+     * @returns 当前主题是否已经被注册
      */
     publish(type: string | symbol, data: any): boolean {
         const { subscribers } = this;
@@ -46,9 +46,8 @@ export class LocalStore {
             subscribers.get(type) === undefined ?
                 [] :
                 subscribers.get(type);
-                
-        if (fnArrays.length > 0) {
 
+        if (fnArrays.length > 0) {
             fnArrays.forEach((fn) => {
                 try {
                     fn(type, data);
@@ -62,11 +61,9 @@ export class LocalStore {
             return false;
         }
     }
-    // static update(fnArrays: Function[]) {
-    //     // fnArrays.
-    // }
+
     /**
-     * Clean up all message subscribers
+     * 清除所有订阅
      */
     clearAllSubscriptions() {
         this.subscribers.clear();

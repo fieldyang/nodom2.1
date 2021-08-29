@@ -1,38 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-		<title>route</title>
 
-		<script type="text/javascript" src="./dist/nodom.js"></script>
-	</head>
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+	<title>route</title>
 
-	<body>
-		<div id="app">
-			<button e-click='click'>aa</button> 
-			<div class="aa"> {{data}}{{name}}</div>
-			<div d-data:true="{{{data}}}" d-data2:false={{pm.pm1}}></div>
-		</div>
-	</body>
-	<script>
-		nodom.app({
-			module: {
-				el: "#app",
-				// template:'/child.html'
-				// class: "MdlRouteMain",
-				data: {
-					data: 123,
-					name:'ak'
-				
-				},
-				methods: {
-click:function(){
-	console.log(this);
-}
-				},
-			
+	<script type="text/javascript" src="./dist/nodom.js"></script>
+</head>
+
+<body>
+	<div id="app">
+		{{rows|orderby:name|select:func:top:3}}
+		{{foods|orderby:price|select:func:top:3}}
+		<!-- <div x-repeat={{foods|orderby:price|select:func:top:3}}>
+			编号：{{$index+1}}，菜名：{{name}}，价格：{{price}}
+		</div> -->
+	</div>
+</body>
+<script>
+	
+	nodom.app({
+		module: {
+			el: "#app",
+			// template:'/child.html'
+			// class: "MdlRouteMain",
+			data: {
+				data: 123,
+				name: 'ak',
+				"rows": [{
+						name: 'yang',
+						addr: 'chengdu'
+					},
+					{
+						name: 'zhangs',
+						addr: 'mianyang'
+					},
+					{
+						name: 'NoDom',
+						addr: 'luoyang'
+					},
+					{
+						name: 'hallo',
+						addr: 'beijing'
+					}
+				],
+				foods: [{
+					name: '夫妻肺片',
+					price: 25
+				}, {
+					name: '京酱肉丝',
+					price: 22
+				}, {
+					name: '糖醋里脊',
+					price: 20
+				}, {
+					name: '红烧茄子',
+					price: 12
+				}, {
+					name: '口水鸡',
+					price: 18
+				}, {
+					name: '水煮肉片',
+					price: 24
+				}]
+
 			},
-		});
-	</script>
+			methods: {
+				click: function () {
+					console.log(this);
+				},
+				top: function (arr,n) {
+					var a = [];
+					for (let i = 0; i < 3; i++) {
+						a.push(arr[i]);
+					}
+
+					return a;
+				},
+			},
+
+		},
+	});
+</script>
+
 </html>

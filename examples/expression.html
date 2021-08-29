@@ -15,6 +15,7 @@
 
 <body>
     <div class="view">
+        {{rows|orderby:name|select:func:top:3}}
         <div>多级数据：{{ac.age.as}}</div>
         <h2>数据计算</h2>
         <div>价格：{{(Math.round((price * discount)))|currency + 'hello'}}</div>
@@ -22,14 +23,13 @@
         <div>描述：{{30 +$addStr('hello' + desc) + 20}}</div>
         <div> 随机折扣:{{(Math.random()*price)|number:1}}</div>
         <div>当前日期是:{{date1|date:'yyyy/MM/dd'}}</div>
-        <!-- <div>{{date1|date:'yyyy-MM-dd HH:mm:ss'}}</div> -->
         <div>当前时间是:{{date1|date:'yyyy-MM-dd HH:mm:ss'}}</div>
         <div x-if='Object.keys(goods).length>0'>判断商品列表是否存在</div>
         <div>路径：{{'/'+'path'+'/'+url}}</div>
         排序过滤器：
-        <ul>
-            <li x-repeat='rows|orderby:name:desc'>{{name}}'s address is {{addr}}</li>
-        </ul>
+        <!-- <ul>
+            <li x-repeat='rows|orderby:price|select:func:top:3'>{{name}}'s address is {{addr}}</li>  
+        </ul> -->
         <div>{{!true}}</div>
         <div>小数点位数过滤器：{{progress|number:1}}</div>
         <div>转换为小写字母:{{name|tolowercase}}</div>
@@ -48,8 +48,7 @@
         <div>三目运算：{{num>0?1:0}}</div> 
         {{desc}}
         {{$index.name}}
-        <div>模块传值：</div>
-        {{this.state}}
+        <div>模块传值： {{this.state}}</div>
         {{1.2}}
     </div>
 </body>

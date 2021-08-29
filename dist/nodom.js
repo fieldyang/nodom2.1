@@ -3138,55 +3138,6 @@ var nodom = (function (exports) {
                 }
             }
             express += endStr;
-            function replaceMethod() {
-                express = express.replace(/\$[^(]+?\(/, () => {
-                    return '$module.methodFactory.get("' + funName.substr(1) + '").call($module,';
-                });
-            }
-            /**
-             * @returns {
-             * str:过滤器串
-             * length:编译跳过的长度
-             */
-            function handFilter() {
-                if (/\d+/.test(exprStr[last + 1])) {
-                    return;
-                }
-                last++;
-                let tmpStr = exprStr.substr(last).split(/[\)\(\+\-\*><=&%]/)[0];
-                let args = [];
-                let value = filters.length > 0 ? filters.pop() + ')' : filterString;
-                let num = 0;
-                tmpStr.replace(/\:/g, function (m, i) {
-                    num++;
-                    return m;
-                });
-                if (tmpStr.indexOf(':') != -1) { //有过滤器格式
-                    args = tmpStr.split(/[\:\+\-\*><=&%]/);
-                }
-                if (args.length == 0) { //如果没有过滤器参数
-                    let filterName = tmpStr.match(/^\w+/)[0];
-                    return {
-                        str: 'nodom.FilterManager.exec($module,"' + filterName + '",' + value + ')',
-                        length: filterName.length - 1,
-                    };
-                }
-                let length = args[0].length + args[1].length;
-                if (args[1].startsWith('##TMP')) { //字符串还原
-                    let deleteKey = args[1];
-                    args[1] = replaceMap.get(args[1]);
-                    replaceMap.delete(deleteKey);
-                }
-                let params = '';
-                for (let i = 1; i < num; i++) { //多个过滤器参数
-                    params += /[\'\"\`]/.test(args[i]) ? args[i] : '\'' + args[i] + '\'' + ',';
-                }
-                params = /[\'\"\`]/.test(args[num]) ? args[num] : '\'' + args[num] + '\'';
-                return {
-                    str: 'nodom.FilterManager.exec($module,"' + args[0] + '",' + value + ',' + params + ')',
-                    length,
-                };
-            }
             if (express.indexOf('instanceof') !== -1) {
                 fields.push(express.split(' ')[0]);
             }
@@ -3205,6 +3156,57 @@ var nodom = (function (exports) {
                 this.addField(field);
             });
             return express;
+            /**
+            * @returns {
+             * str:过滤器串
+             * length:编译跳过的长度
+             */
+            function handFilter() {
+                //逻辑运算
+                if (/\d+/.test(exprStr[last + 1])) {
+                    return;
+                }
+                last++;
+                let tmpStr = exprStr.substr(last).split(/[\)\(\+\-\*><=&%]/)[0];
+                //多个过滤器
+                let filterStr = tmpStr.split('|');
+                let filterObj = {};
+                let value = filters.length > 0 ? filters.pop() + ')' : filterString;
+                let length = 0;
+                for (let i = 0; i < filterStr.length; i++) {
+                    let fString = filterStr[i];
+                    let args = [];
+                    if (fString.indexOf(':') != -1) { //有过滤器格式
+                        args = fString.split(/[\:\+\-\*><=&%]/);
+                    }
+                    if (args.length == 0) { //如果没有过滤器参数
+                        let filterName = fString.match(/^\w+/)[0];
+                        filterObj[filterName] = [];
+                        length += filterName.length - 1;
+                        continue;
+                    }
+                    for (let i = 1; i < args.length; i++) {
+                        if (args[i].startsWith('##TMP')) { //字符串还原
+                            let deleteKey = args[i];
+                            args[i] = replaceMap.get(args[i]);
+                            replaceMap.delete(deleteKey);
+                        }
+                        length += args[i].length;
+                    }
+                    length += args.length + args[0].length;
+                    let params = args.slice(1);
+                    filterObj[args[0]] = params;
+                }
+                return {
+                    str: 'nodom.FilterManager.exec($module,' + JSON.stringify(filterObj) + ',' + value + ')',
+                    length: length,
+                };
+            }
+            function replaceMethod() {
+                express = express.replace(/\$[^(]+?\(/, () => {
+                    return '$module.methodFactory.get("' + funName.substr(1) + '").call($module,';
+                });
+            }
         }
         /**
          * 表达式计算
@@ -3307,7 +3309,7 @@ var nodom = (function (exports) {
          *
          * @param type  publish a topic
          * @param data Sent data
-         * @returns  Whether topic are  registered subscribers
+         * @returns 当前主题是否已经被注册
          */
         publish(type, data) {
             const { subscribers } = this;
@@ -3329,11 +3331,8 @@ var nodom = (function (exports) {
                 return false;
             }
         }
-        // static update(fnArrays: Function[]) {
-        //     // fnArrays.
-        // }
         /**
-         * Clean up all message subscribers
+         * 清除所有订阅
          */
         clearAllSubscriptions() {
             this.subscribers.clear();
@@ -4168,15 +4167,26 @@ var nodom = (function (exports) {
          * @returns 		过滤器执行结果
          */
         static exec(module, type) {
-            let params = new Array();
-            for (let i = 2; i < arguments.length; i++) {
-                params.push(arguments[i]);
+            if (typeof type === 'string') {
+                let params = new Array();
+                for (let i = 2; i < arguments.length; i++) {
+                    params.push(arguments[i]);
+                }
+                if (!FilterManager.filterTypes.has(type)) {
+                    throw new NError('notexist1', exports.NodomMessage.TipWords['filterType'], type);
+                }
+                //调用
+                return Util.apply(FilterManager.filterTypes.get(type), module, params);
             }
-            if (!FilterManager.filterTypes.has(type)) {
-                throw new NError('notexist1', exports.NodomMessage.TipWords['filterType'], type);
+            else {
+                //多个过滤器
+                return Object.keys(type).reduce((pre, v) => {
+                    if (!FilterManager.filterTypes.has(v)) {
+                        throw new NError('notexist1', exports.NodomMessage.TipWords['filterType'], v);
+                    }
+                    return Util.apply(FilterManager.filterTypes.get(v), module, [pre, ...type[v]]);
+                }, arguments[2]);
             }
-            //调用
-            return Util.apply(FilterManager.filterTypes.get(type), module, params);
         }
         /**
          * 解析过滤器串为数组
